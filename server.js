@@ -9,6 +9,7 @@ const connectPgSimple = require("connect-pg-simple");
 const { rateLimit } = require("express-rate-limit");
 const argon2 = require("argon2");
 const pool = require("./db");
+const softwareRoutes = require("./routes/software");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,6 +92,8 @@ function requireSameOrigin(req, res, next) {
 
   next();
 }
+
+
 
 function requireAdmin(req, res, next) {
   if (!req.session.adminId) {
@@ -262,6 +265,8 @@ app.get(
     );
   }
 );
+
+app.use("/api/software", softwareRoutes);
 
 // Keep your existing V2 public website working.
 app.use(express.static(
