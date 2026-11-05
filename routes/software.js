@@ -64,15 +64,20 @@ function requireSameOrigin(req, res, next) {
 }
 
 // Save an audit event inside the current database transaction.
+
 async function recordApprovalEvent(client, {
-  softwareVersionId,
+  softwareVersionId = null,
   softwareName,
   publisher,
-  version,
+  version = "",
   oldStatus = null,
   newStatus = null,
   oldVersion = null,
   newVersion = null,
+  oldSoftwareName = null,
+  newSoftwareName = null,
+  oldPublisher = null,
+  newPublisher = null,
   action,
   adminId,
   adminEmail
@@ -87,13 +92,18 @@ async function recordApprovalEvent(client, {
       new_status,
       old_version,
       new_version,
+      old_software_name,
+      new_software_name,
+      old_publisher,
+      new_publisher,
       action,
       admin_id,
       admin_email
     )
     VALUES (
-      $1, $2, $3, $4, $5, $6,
-      $7, $8, $9, $10, $11
+      $1, $2, $3, $4, $5,
+      $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15
     )`,
     [
       softwareVersionId,
@@ -104,6 +114,10 @@ async function recordApprovalEvent(client, {
       newStatus,
       oldVersion,
       newVersion,
+      oldSoftwareName,
+      newSoftwareName,
+      oldPublisher,
+      newPublisher,
       action,
       adminId,
       adminEmail
@@ -163,38 +177,47 @@ router.use((req, res, next) => {
 
 
 // ADMIN: Read recent software audit history.
+
 router.get("/audit", async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT
-         id,
-         software_version_id,
-         software_name,
-         publisher,
-         version,
-         old_status,
-         new_status,
-         old_status,
-         new_status,
-         action,
-         admin_email,
-         created_at
-       FROM softtrack_audit_events
-       ORDER BY created_at DESC, id DESC
-       LIMIT 100`
-    );
+  `SELECT
+     id,
+     software_version_id,
+     software_name,
+     publisher,
+     version,
+     old_status,
+     new_status,
+     old_version,
+     new_version,
+     old_software_name,
+     new_software_name,
+     old_publisher,
+     new_publisher,
+     action,
+     admin_email,
+     created_at
+   FROM softtrack_audit_events
+   ORDER BY created_at DESC, id DESC
+   LIMIT 100`
+);
 
     res.set("Cache-Control", "no-store");
     res.json(result.rows);
 
   } catch (error) {
-    console.error("Audit history failed:", error.message);
+    console.error(
+      "Audit history failed:",
+      error.message
+    );
 
     res.status(500).json({
       error: "Unable to load audit history"
     });
   }
 });
+
 
 
 // ADMIN: Add software or a new version.
@@ -353,6 +376,7 @@ router.post("/", async (req, res) => {
 });
 
 // ADMIN: Update a software group's name and publisher.
+
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const { name, publisher } = req.body || {};
@@ -367,35 +391,99 @@ router.patch("/:id", async (req, res) => {
     });
   }
 
+  let client;
+
   try {
-    const result = await pool.query(
-      `UPDATE software
-       SET name = $1,
-           publisher = $2
-       WHERE id = $3
-       RETURNING id, name, publisher`,
-      [name.trim(), publisher.trim(), id]
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    const existing = await client.query(
+      `SELECT id, name, publisher
+       FROM software
+       WHERE id = $1
+       FOR UPDATE`,
+      [id]
     );
 
-    if (!result.rowCount) {
+    if (!existing.rowCount) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         error: "Software not found"
       });
     }
 
-    res.json(result.rows[0]);
+    const previous = existing.rows[0];
+    const newName = name.trim();
+    const newPublisher = publisher.trim();
+
+    const nameChanged = previous.name !== newName;
+    const publisherChanged =
+      previous.publisher !== newPublisher;
+
+    if (!nameChanged && !publisherChanged) {
+      await client.query("ROLLBACK");
+
+      return res.json({
+        ...previous,
+        unchanged: true
+      });
+    }
+
+    const updated = await client.query(
+      `UPDATE software
+       SET name = $1,
+           publisher = $2
+       WHERE id = $3
+       RETURNING id, name, publisher`,
+      [newName, newPublisher, id]
+    );
+
+    await recordApprovalEvent(client, {
+      softwareVersionId: null,
+      softwareName: newName,
+      publisher: newPublisher,
+      version: "",
+      oldSoftwareName: previous.name,
+      newSoftwareName: newName,
+      oldPublisher: previous.publisher,
+      newPublisher: newPublisher,
+      action: "software_updated",
+      adminId: req.session.adminId,
+      adminEmail: req.session.adminEmail
+    });
+
+    await client.query("COMMIT");
+
+    res.json(updated.rows[0]);
 
   } catch (error) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
     console.error(
       "Software update failed:",
       error.message
     );
 
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: "A software group with that name and publisher already exists"
+      });
+    }
+
     res.status(500).json({
       error: "Unable to update software"
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
+
 
 
  // ADMIN: Edit a version or its approval status.

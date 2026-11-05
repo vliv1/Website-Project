@@ -59,6 +59,131 @@ function makeElement(tag, text, className = "") {
 }
 
 
+
+/* ==========================================
+   EDIT SOFTWARE GROUP
+   ========================================== */
+
+function createSoftwareGroupEditor(software) {
+  const editor = document.createElement("form");
+  editor.className = "admin-version-editor";
+
+  const nameLabel = makeElement("label", "Software name");
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.value = software.name;
+  nameInput.maxLength = 120;
+  nameInput.required = true;
+
+  const publisherLabel = makeElement("label", "Publisher");
+
+  const publisherInput = document.createElement("input");
+  publisherInput.type = "text";
+  publisherInput.value = software.publisher;
+  publisherInput.maxLength = 120;
+  publisherInput.required = true;
+
+  const buttonRow = document.createElement("div");
+  buttonRow.className = "admin-edit-actions";
+
+  const saveButton = makeElement("button", "Save Group Changes");
+  saveButton.type = "submit";
+  saveButton.className = "admin-edit-save";
+
+  const cancelButton = makeElement("button", "Cancel");
+  cancelButton.type = "button";
+  cancelButton.className = "admin-edit-cancel";
+
+  const message = makeElement("p", "");
+  message.setAttribute("role", "status");
+  message.setAttribute("aria-live", "polite");
+
+  buttonRow.append(saveButton, cancelButton);
+
+  editor.append(
+    nameLabel,
+    nameInput,
+    publisherLabel,
+    publisherInput,
+    buttonRow,
+    message
+  );
+
+  cancelButton.addEventListener("click", () => {
+    editor.remove();
+  });
+
+  editor.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const name = nameInput.value.trim();
+    const publisher = publisherInput.value.trim();
+
+    if (!name || !publisher) {
+      message.textContent =
+        "Software name and publisher are required.";
+      return;
+    }
+
+    if (
+      name === software.name &&
+      publisher === software.publisher
+    ) {
+      message.textContent = "No changes to save.";
+      return;
+    }
+
+    saveButton.disabled = true;
+    cancelButton.disabled = true;
+    message.textContent = "Saving group changes...";
+
+    try {
+      const response = await fetch(
+        `/api/software/${encodeURIComponent(software.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ name, publisher })
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.status === 401) {
+        window.location.replace("/login.html");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to update software group."
+        );
+      }
+
+      await loadAdminInventory();
+
+      adminMessage.textContent =
+        `${name} was updated successfully.`;
+
+    } catch (error) {
+      console.error("Software group edit failed:", error);
+      message.textContent =
+        error.message || "Unable to save group changes.";
+    } finally {
+      saveButton.disabled = false;
+      cancelButton.disabled = false;
+    }
+  });
+
+  return editor;
+}
+
+
+
 /* ==========================================
    EDIT SOFTWARE VERSION / APPROVAL STATUS
    ========================================== */
@@ -250,7 +375,33 @@ function renderAdminInventory() {
       "admin-publisher"
     );
 
-    card.append(title, publisher);
+    
+const editGroupButton = makeElement(
+  "button",
+  "✏️ Edit Software Group"
+);
+
+editGroupButton.type = "button";
+editGroupButton.className = "admin-edit-button";
+
+editGroupButton.addEventListener("click", () => {
+  const existingEditor = card.querySelector(
+    ".admin-group-editor"
+  );
+
+  if (existingEditor) {
+    existingEditor.remove();
+    return;
+  }
+
+  const editor = createSoftwareGroupEditor(software);
+  editor.classList.add("admin-group-editor");
+
+  card.insertBefore(editor, card.firstChild.nextSibling);
+});
+
+card.append(title, publisher, editGroupButton);
+
 
     
 software.versions.forEach(version => {
@@ -572,6 +723,7 @@ adminSoftwareForm.addEventListener("submit", async (event) => {
 });
 
 
+
 /* ==========================================
    SOFTTRACK V3 AUDIT HISTORY
    ========================================== */
@@ -590,7 +742,8 @@ function formatAuditAction(action) {
     created: "Software Version Created",
     status_changed: "Approval Status Changed",
     version_updated: "Software Version Updated",
-    deleted: "Software Version Deleted"
+    deleted: "Software Version Deleted",
+    software_updated: "Software Group Updated"
   };
 
   return labels[action] || action;
@@ -649,6 +802,7 @@ function renderAuditHistory(events) {
       publisher
     );
 
+    // Show creation and approval status changes.
     if (
       event.action === "status_changed" ||
       event.action === "created"
@@ -663,20 +817,64 @@ function renderAuditHistory(events) {
       card.appendChild(status);
     }
 
+    // Show previous and new version numbers.
+    if (event.action === "version_updated") {
+      const oldVersion =
+        event.old_version || "Unknown";
+
+      const newVersion =
+        event.new_version || event.version;
+
+      const versionChange = makeElement(
+        "p",
+        `Version changed: ${oldVersion} → ${newVersion}`
+      );
+
+      card.appendChild(versionChange);
+    }
+
+
+    // Show changes to software group names and publishers.
+    if (event.action === "software_updated") {
+      if (event.old_software_name !== event.new_software_name) {
+        card.appendChild(
+          makeElement(
+            "p",
+            `Software name changed: ${event.old_software_name} → ${event.new_software_name}`
+          )
+        );
+      }
+
+      if (event.old_publisher !== event.new_publisher) {
+        card.appendChild(
+          makeElement(
+            "p",
+            `Publisher changed: ${event.old_publisher} → ${event.new_publisher}`
+          )
+        );
+      }
+    }
+
+
     card.append(administrator, timestamp);
     auditHistoryList.appendChild(card);
   });
 }
 
 async function loadAuditHistory() {
-  auditMessage.textContent = "Loading audit history...";
+  auditMessage.textContent =
+    "Loading audit history...";
+
   refreshAuditButton.disabled = true;
 
   try {
-    const response = await fetch("/api/software/audit", {
-      credentials: "same-origin",
-      cache: "no-store"
-    });
+    const response = await fetch(
+      "/api/software/audit",
+      {
+        credentials: "same-origin",
+        cache: "no-store"
+      }
+    );
 
     if (response.status === 401) {
       window.location.replace("/login.html");
@@ -684,19 +882,24 @@ async function loadAuditHistory() {
     }
 
     if (!response.ok) {
-      throw new Error("Unable to retrieve audit history.");
+      throw new Error(
+        "Unable to retrieve audit history."
+      );
     }
 
     const events = await response.json();
 
     if (!Array.isArray(events)) {
-      throw new Error("Invalid audit history response.");
+      throw new Error(
+        "Invalid audit history response."
+      );
     }
 
     renderAuditHistory(events);
 
   } catch (error) {
     console.error("Audit history error:", error);
+
     auditMessage.textContent =
       "Unable to load audit history. Please try again.";
 
@@ -710,19 +913,18 @@ refreshAuditButton.addEventListener(
   loadAuditHistory
 );
 
-// Load history when the Audit sidebar link is selected.
+// Load history when Audit History is selected.
 window.addEventListener("hashchange", () => {
   if (window.location.hash === "#adminAudit") {
     loadAuditHistory();
   }
 });
 
-// Also handle opening the dashboard directly at #adminAudit.
+// Load history when opening directly at #adminAudit.
 if (window.location.hash === "#adminAudit") {
-  // Wait until administrator session verification finishes.
-  // The protected API still checks the session.
   loadAuditHistory();
 }
 
-
+// Start the administrator dashboard.
 loadAdmin();
+
