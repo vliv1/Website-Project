@@ -1,9 +1,6 @@
 
-
-
 const express = require("express");
 const pool = require("../db");
-
 
 const router = express.Router();
 
@@ -22,9 +19,10 @@ function isValidText(value, max = 120) {
 }
 
 function isUUID(value) {
-  return typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      .test(value);
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+  );
 }
 
 function requireAdmin(req, res, next) {
@@ -37,8 +35,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Browser writes must come from the same origin.
-// Keep your existing session and origin protections.
 function requireSameOrigin(req, res, next) {
   const origin = req.get("origin");
 
@@ -65,6 +61,45 @@ function requireSameOrigin(req, res, next) {
   }
 
   next();
+}
+
+// Save an audit event inside the current database transaction.
+async function recordApprovalEvent(client, {
+  softwareVersionId,
+  softwareName,
+  publisher,
+  version,
+  oldStatus = null,
+  newStatus = null,
+  action,
+  adminId,
+  adminEmail
+}) {
+  await client.query(
+    `INSERT INTO softtrack_audit_events (
+      software_version_id,
+      software_name,
+      publisher,
+      version,
+      old_status,
+      new_status,
+      action,
+      admin_id,
+      admin_email
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      softwareVersionId,
+      softwareName,
+      publisher,
+      version,
+      oldStatus,
+      newStatus,
+      action,
+      adminId,
+      adminEmail
+    ]
+  );
 }
 
 // PUBLIC: Read all software and versions.
@@ -97,50 +132,101 @@ router.get("/", async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error("Inventory read failed:", error.message);
+
     res.status(500).json({
       error: "Unable to load inventory"
     });
   }
 });
 
-// All routes below require an authenticated admin
+// All routes below require an authenticated administrator
 // and a same-origin browser request.
-router.use(requireAdmin, requireSameOrigin);
+router.use(requireAdmin);
 
-// ADMIN: Add software or a version.
+router.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD") {
+    return next();
+  }
+
+  return requireSameOrigin(req, res, next);
+});
+
+
+// ADMIN: Read recent software audit history.
+router.get("/audit", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         id,
+         software_version_id,
+         software_name,
+         publisher,
+         version,
+         old_status,
+         new_status,
+         action,
+         admin_email,
+         created_at
+       FROM softtrack_audit_events
+       ORDER BY created_at DESC, id DESC
+       LIMIT 100`
+    );
+
+    res.set("Cache-Control", "no-store");
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error("Audit history failed:", error.message);
+
+    res.status(500).json({
+      error: "Unable to load audit history"
+    });
+  }
+});
+
+
+// ADMIN: Add software or a new version.
 router.post("/", async (req, res) => {
   const { name, publisher, version, status } = req.body || {};
 
-  if (!isValidText(name) ||
-      !isValidText(publisher) ||
-      !isValidText(version, 80) ||
-      !STATUSES.has(status)) {
+  if (
+    !isValidText(name) ||
+    !isValidText(publisher) ||
+    !isValidText(version, 80) ||
+    !STATUSES.has(status)
+  ) {
     return res.status(400).json({
       error: "Invalid software information"
     });
   }
 
-  const client = await pool.connect();
+  let client;
 
   try {
+    client = await pool.connect();
+
     await client.query("BEGIN");
 
-    // Serialize creation of a particular software group.
     const normalizedName = name.trim();
     const normalizedPublisher = publisher.trim();
 
+    // Prevent simultaneous requests from creating duplicate
+    // software groups.
+    //
+    // IMPORTANT: PostgreSQL does not allow NUL characters
+    // in text. chr(31) replaces the old \u0000 separator.
     await client.query(
       `SELECT pg_advisory_xact_lock(
-         hashtextextended($1, 0)
-       )`,
-      [
-        normalizedName.toLowerCase() +
-        "\u0000" +
-        normalizedPublisher.toLowerCase()
-      ]
+        hashtextextended(
+          lower($1) || chr(31) || lower($2),
+          0
+        )
+      )`,
+      [normalizedName, normalizedPublisher]
     );
 
-    let software = await client.query(
+    // Check whether the software group already exists.
+    const software = await client.query(
       `SELECT id
        FROM software
        WHERE lower(name) = lower($1)
@@ -154,16 +240,25 @@ router.post("/", async (req, res) => {
     if (software.rows.length) {
       softwareId = software.rows[0].id;
     } else {
-     const inserted = await client.query(
-      `INSERT INTO software (id, name, publisher)
-      VALUES (gen_random_uuid(), $1, $2)
-      RETURNING id`,
-      [normalizedName, normalizedPublisher]
-    );
+      const inserted = await client.query(
+        `INSERT INTO software (
+          id,
+          name,
+          publisher
+        )
+        VALUES (
+          gen_random_uuid(),
+          $1,
+          $2
+        )
+        RETURNING id`,
+        [normalizedName, normalizedPublisher]
+      );
 
       softwareId = inserted.rows[0].id;
     }
 
+    // Prevent duplicate versions.
     const duplicate = await client.query(
       `SELECT id
        FROM software_versions
@@ -175,57 +270,86 @@ router.post("/", async (req, res) => {
 
     if (duplicate.rows.length) {
       await client.query("ROLLBACK");
+
       return res.status(409).json({
         error: "That software version already exists"
       });
     }
 
+    // Insert the software version.
     const insertedVersion = await client.query(
-  `INSERT INTO software_versions
-     (id, software_id, version, status)
-   VALUES (gen_random_uuid(), $1, $2, $3)
-   RETURNING id, software_id, version, status`,
-  [softwareId, version.trim(), status]
-);
+      `INSERT INTO software_versions (
+        id,
+        software_id,
+        version,
+        status
+      )
+      VALUES (
+        gen_random_uuid(),
+        $1,
+        $2,
+        $3
+      )
+      RETURNING
+        id,
+        software_id,
+        version,
+        status`,
+      [softwareId, version.trim(), status]
+    );
 
+    // Record who created the software version.
     await recordApprovalEvent(client, {
-  softwareVersionId: insertedVersion.rows[0].id,
-  softwareName: normalizedName,
-  publisher: normalizedPublisher,
-  version: insertedVersion.rows[0].version,
-  oldStatus: null,
-  newStatus: insertedVersion.rows[0].status,
-  action: "created",
-  adminId: req.session.adminId,
-  adminEmail: req.session.adminEmail
-});
+      softwareVersionId: insertedVersion.rows[0].id,
+      softwareName: normalizedName,
+      publisher: normalizedPublisher,
+      version: insertedVersion.rows[0].version,
+      oldStatus: null,
+      newStatus: insertedVersion.rows[0].status,
+      action: "created",
+      adminId: req.session.adminId,
+      adminEmail: req.session.adminEmail
+    });
 
-await client.query("COMMIT");
+    // Save both the software version and audit event.
+    await client.query("COMMIT");
 
-res.status(201).json({
-  softwareId,
-  version: insertedVersion.rows[0]
-});
+    res.status(201).json({
+      softwareId,
+      version: insertedVersion.rows[0]
+    });
+
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    console.error("Software creation failed:", error.message);
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
+    console.error(
+      "Software creation failed:",
+      error.message
+    );
 
     res.status(500).json({
       error: "Unable to add software"
     });
+
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 });
 
-// ADMIN: Update a software group's name/publisher.
+// ADMIN: Update a software group's name and publisher.
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const { name, publisher } = req.body || {};
 
-  if (!isUUID(id) ||
-      !isValidText(name) ||
-      !isValidText(publisher)) {
+  if (
+    !isUUID(id) ||
+    !isValidText(name) ||
+    !isValidText(publisher)
+  ) {
     return res.status(400).json({
       error: "Invalid software information"
     });
@@ -234,7 +358,8 @@ router.patch("/:id", async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE software
-       SET name = $1, publisher = $2
+       SET name = $1,
+           publisher = $2
        WHERE id = $3
        RETURNING id, name, publisher`,
       [name.trim(), publisher.trim(), id]
@@ -247,52 +372,154 @@ router.patch("/:id", async (req, res) => {
     }
 
     res.json(result.rows[0]);
+
   } catch (error) {
-    console.error("Software update failed:", error.message);
+    console.error(
+      "Software update failed:",
+      error.message
+    );
+
     res.status(500).json({
       error: "Unable to update software"
     });
   }
 });
 
-// ADMIN: Edit a version or its approval status.
+
+ // ADMIN: Edit a version or its approval status.
 router.patch("/versions/:id", async (req, res) => {
   const { id } = req.params;
   const { version, status } = req.body || {};
 
-  if (!isUUID(id) ||
-      !isValidText(version, 80) ||
-      !STATUSES.has(status)) {
+  if (
+    !isUUID(id) ||
+    !isValidText(version, 80) ||
+    !STATUSES.has(status)
+  ) {
     return res.status(400).json({
       error: "Invalid version information"
     });
   }
 
+  let client;
+
   try {
-    const result = await pool.query(
-      `UPDATE software_versions
-       SET version = $1, status = $2
-       WHERE id = $3
-       RETURNING id, software_id, version, status`,
-      [version.trim(), status, id]
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    // Lock the version while we read its previous values.
+    const existing = await client.query(
+      `SELECT
+         v.id,
+         v.version,
+         v.status,
+         s.name AS software_name,
+         s.publisher
+       FROM software_versions v
+       JOIN software s ON s.id = v.software_id
+       WHERE v.id = $1
+       FOR UPDATE OF v`,
+      [id]
     );
 
-    if (!result.rowCount) {
+    if (!existing.rowCount) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         error: "Version not found"
       });
     }
 
-    res.json(result.rows[0]);
+    const previous = existing.rows[0];
+    const newVersion = version.trim();
+
+    const versionChanged =
+      previous.version !== newVersion;
+
+    const statusChanged =
+      previous.status !== status;
+
+    // Nothing changed.
+    if (!versionChanged && !statusChanged) {
+      await client.query("ROLLBACK");
+
+      return res.json({
+        id,
+        version: previous.version,
+        status: previous.status,
+        unchanged: true
+      });
+    }
+
+    const updated = await client.query(
+      `UPDATE software_versions
+       SET version = $1,
+           status = $2
+       WHERE id = $3
+       RETURNING id, software_id, version, status`,
+      [newVersion, status, id]
+    );
+
+    // Record changes before committing the transaction.
+    // If both change, create two separate audit events.
+    if (statusChanged) {
+      await recordApprovalEvent(client, {
+        softwareVersionId: id,
+        softwareName: previous.software_name,
+        publisher: previous.publisher,
+        version: newVersion,
+        oldStatus: previous.status,
+        newStatus: status,
+        action: "status_changed",
+        adminId: req.session.adminId,
+        adminEmail: req.session.adminEmail
+      });
+    }
+
+    if (versionChanged) {
+      await recordApprovalEvent(client, {
+        softwareVersionId: id,
+        softwareName: previous.software_name,
+        publisher: previous.publisher,
+        version: newVersion,
+        oldStatus: previous.status,
+        newStatus: status,
+        action: "version_updated",
+        adminId: req.session.adminId,
+        adminEmail: req.session.adminEmail
+      });
+    }
+
+    await client.query("COMMIT");
+
+    res.json(updated.rows[0]);
+
   } catch (error) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
     console.error("Version update failed:", error.message);
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: "That software version already exists"
+      });
+    }
+
     res.status(500).json({
       error: "Unable to update version"
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
-// ADMIN: Delete a version.
+
+// ADMIN: Delete a software version.
 router.delete("/versions/:id", async (req, res) => {
   if (!isUUID(req.params.id)) {
     return res.status(400).json({
@@ -314,9 +541,16 @@ router.delete("/versions/:id", async (req, res) => {
       });
     }
 
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
+
   } catch (error) {
-    console.error("Version deletion failed:", error.message);
+    console.error(
+      "Version deletion failed:",
+      error.message
+    );
+
     res.status(500).json({
       error: "Unable to delete version"
     });
@@ -345,9 +579,16 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
+
   } catch (error) {
-    console.error("Software deletion failed:", error.message);
+    console.error(
+      "Software deletion failed:",
+      error.message
+    );
+
     res.status(500).json({
       error: "Unable to delete software"
     });
@@ -355,42 +596,3 @@ router.delete("/:id", async (req, res) => {
 });
 
 module.exports = router;
-
-
-async function recordApprovalEvent(client, {
-  softwareVersionId,
-  softwareName,
-  publisher,
-  version,
-  oldStatus = null,
-  newStatus = null,
-  action,
-  adminId,
-  adminEmail
-}) {
-  await client.query(
-    `INSERT INTO approval_events (
-      software_version_id,
-      software_name,
-      publisher,
-      version,
-      old_status,
-      new_status,
-      action,
-      admin_id,
-      admin_email
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [
-      softwareVersionId,
-      softwareName,
-      publisher,
-      version,
-      oldStatus,
-      newStatus,
-      action,
-      adminId,
-      adminEmail
-    ]
-  );
-}

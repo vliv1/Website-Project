@@ -1,386 +1,245 @@
 
-const V1_KEY = "softwareApprovalTrackerV1";
-const V2_KEY = "softwareApprovalTrackerV2";
+"use strict";
 
-const STATUSES = ["Approved", "Pending", "Denied"];
+// SoftTrack V3 — Public read-only inventory
+// This file does not write to Neon or localStorage.
 
-let software = [];
+const softwareList = document.getElementById("softwareList");
+const emptyMessage = document.getElementById("emptyMessage");
+const searchInput = document.getElementById("search");
+const statusFilter = document.getElementById("statusFilter");
+const exportBtn = document.getElementById("exportBtn");
 
-// Generate unique identifiers
-function newId() {
-  return crypto.randomUUID();
-}
+let inventory = [];
+let loadError = false;
 
-// Read saved data safely
-function readStorage(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw === null ? null : JSON.parse(raw);
-  } catch (error) {
-    console.error("Storage read failed:", error);
-    return null;
-  }
-}
-
-// Convert Version 1 entries to Version 2
-function migrateV1(oldEntries) {
-  const groups = [];
-
-  for (const item of oldEntries) {
-    if (!item ||
-        typeof item.name !== "string" ||
-        typeof item.publisher !== "string") {
-      continue;
-    }
-
-    const name = item.name.trim();
-    const publisher = item.publisher.trim();
-
-    if (!name || !publisher) continue;
-
-    const status = STATUSES.includes(item.status)
-      ? item.status
-      : "Pending";
-
-    let group = groups.find(g =>
-      g.name.toLowerCase() === name.toLowerCase() &&
-      g.publisher.toLowerCase() === publisher.toLowerCase()
-    );
-
-    if (!group) {
-      group = {
-        id: newId(),
-        name,
-        publisher,
-        versions: []
-      };
-      groups.push(group);
-    }
-
-    group.versions.push({
-      id: newId(),
-      number: "Unspecified",
-      status
-    });
-  }
-
-  return groups;
-}
-
-// Load V2, or migrate V1 on first launch
-function loadSoftware() {
-  const savedV2 = readStorage(V2_KEY);
-
-  if (Array.isArray(savedV2)) {
-    return savedV2;
-  }
-
-  // Do not overwrite an existing V2 key
-  if (localStorage.getItem(V2_KEY) !== null) {
-    alert("V2 data could not be read. Export or back up your browser data before making changes.");
-    throw new Error("Invalid V2 storage");
-  }
-
-  const savedV1 = readStorage(V1_KEY);
-
-  if (localStorage.getItem(V1_KEY) !== null &&
-      !Array.isArray(savedV1)) {
-    alert("V1 data could not be read. Migration stopped to protect your existing data.");
-    throw new Error("Invalid V1 storage");
-  }
-
-  const migrated = migrateV1(savedV1 || []);
-
-  // Write V2 without changing V1
-  localStorage.setItem(V2_KEY, JSON.stringify(migrated));
-
-  return migrated;
-}
-
-software = loadSoftware();
-
-// DOM references
-const form = document.getElementById("softwareForm");
-const list = document.getElementById("softwareList");
-const search = document.getElementById("search");
-const filter = document.getElementById("statusFilter");
-
-function saveSoftware() {
-  try {
-    localStorage.setItem(V2_KEY, JSON.stringify(software));
-    return true;
-  } catch (error) {
-    alert("Could not save changes. Browser storage may be full.");
-    return false;
-  }
+function setCount(id, value) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = String(value);
 }
 
 function updateDashboard() {
-  const versions = software.flatMap(g => g.versions);
-
-  document.getElementById("softwareCount").textContent =
-    software.length;
-
-  for (const status of STATUSES) {
-    const count = versions.filter(
-      v => v.status === status
-    ).length;
-
-    document.getElementById(
-      status.toLowerCase() + "Count"
-    ).textContent = count;
-  }
-}
-
-function createStatusSelect(version, group) {
-  const select = document.createElement("select");
-  select.className = "status-select";
-
-  for (const status of STATUSES) {
-    const option = document.createElement("option");
-    option.value = status;
-    option.textContent =
-      status === "Pending" ? "Pending Approval" : status;
-    select.appendChild(option);
-  }
-
-  select.value = version.status;
-
-  select.addEventListener("change", () => {
-    const previous = version.status;
-    version.status = select.value;
-
-    if (!saveSoftware()) {
-      version.status = previous;
-    }
-
-    refresh();
-  });
-
-  return select;
-}
-
-function renderSoftware() {
-  // Remember which groups are expanded
-  const openGroups = new Set(
-    [...list.querySelectorAll("details[open]")]
-      .map(element => element.dataset.id)
+  const versions = inventory.flatMap(
+    software => software.versions || []
   );
 
-  list.replaceChildren();
+  setCount("softwareCount", inventory.length);
+  setCount(
+    "approvedCount",
+    versions.filter(v => v.status === "Approved").length
+  );
+  setCount(
+    "pendingCount",
+    versions.filter(v => v.status === "Pending").length
+  );
+  setCount(
+    "deniedCount",
+    versions.filter(v => v.status === "Denied").length
+  );
+}
 
-  const term = search.value.toLowerCase().trim();
-  const selectedStatus = filter.value;
+function getFilteredInventory() {
+  const query = searchInput.value.trim().toLowerCase();
+  const selectedStatus = statusFilter.value;
 
-  let visibleCount = 0;
+  return inventory
+    .map(software => {
+      const groupMatches =
+        software.name.toLowerCase().includes(query) ||
+        software.publisher.toLowerCase().includes(query);
 
-  for (const group of software) {
-    const matchesText =
-      group.name.toLowerCase().includes(term) ||
-      group.publisher.toLowerCase().includes(term) ||
-      group.versions.some(v =>
-        v.number.toLowerCase().includes(term)
-      );
+      const versions = (software.versions || []).filter(v => {
+        const matchesStatus =
+          selectedStatus === "All" ||
+          v.status === selectedStatus;
 
-    if (!matchesText) continue;
+        const matchesSearch =
+          !query ||
+          groupMatches ||
+          String(v.number).toLowerCase().includes(query);
 
-    const visibleVersions = group.versions.filter(v =>
-      selectedStatus === "All" ||
-      v.status === selectedStatus
-    );
+        return matchesStatus && matchesSearch;
+      });
 
-    if (!visibleVersions.length) continue;
+      return { ...software, versions };
+    })
+    .filter(software => {
+      const hasVersions = software.versions.length > 0;
 
-    visibleCount++;
+      const matchesGroup =
+        software.name.toLowerCase().includes(query) ||
+        software.publisher.toLowerCase().includes(query);
 
-    const details = document.createElement("details");
-    details.className = "software-group";
-    details.dataset.id = group.id;
+      return hasVersions ||
+        (statusFilter.value === "All" && matchesGroup);
+    });
+}
 
-    if (openGroups.has(group.id) || term) {
-      details.open = true;
-    }
+function createTextElement(tag, text, className = "") {
+  const element = document.createElement(tag);
+  element.textContent = text;
 
-    const summary = document.createElement("summary");
-    summary.className = "group-heading";
+  if (className) element.className = className;
+
+  return element;
+}
+
+function renderInventory() {
+  softwareList.replaceChildren();
+
+  const filtered = getFilteredInventory();
+
+  if (filtered.length === 0) {
+    emptyMessage.hidden = false;
+    emptyMessage.textContent = loadError
+      ? "Unable to load software inventory."
+      : "No software records match your filters.";
+    return;
+  }
+
+  emptyMessage.hidden = true;
+
+  filtered.forEach(software => {
+    const card = document.createElement("article");
+    card.className = "software-group";
 
     const heading = document.createElement("div");
+    heading.className = "software-heading";
 
-    const title = document.createElement("strong");
-    title.textContent = group.name;
+    const title = createTextElement(
+      "h3",
+      software.name,
+      "software-title"
+    );
 
-    const subtitle = document.createElement("small");
-    subtitle.textContent =
-      `${group.publisher} · ${group.versions.length} version(s)`;
+    const publisher = createTextElement(
+      "p",
+      software.publisher,
+      "software-publisher"
+    );
 
-    heading.append(title, subtitle);
-    summary.appendChild(heading);
-    details.appendChild(summary);
+    heading.append(title, publisher);
+    card.appendChild(heading);
 
-    for (const version of visibleVersions) {
+    const versions = document.createElement("div");
+    versions.className = "software-versions";
+
+    if (software.versions.length === 0) {
+      versions.appendChild(
+        createTextElement(
+          "p",
+          "No versions recorded.",
+          "help-text"
+        )
+      );
+    }
+
+    software.versions.forEach(version => {
       const row = document.createElement("div");
       row.className = "version-row";
 
-      const versionText = document.createElement("span");
-      versionText.textContent = `Version ${version.number}`;
+      const number = createTextElement(
+        "span",
+        `Version ${version.number}`,
+        "version-number"
+      );
 
-      const select = createStatusSelect(version, group);
+      const status = createTextElement(
+        "span",
+        version.status,
+        "status-badge"
+      );
 
-      const deleteButton = document.createElement("button");
-      deleteButton.className = "danger";
-      deleteButton.textContent = "Delete";
+      status.classList.add(
+        `status-${version.status.toLowerCase()}`
+      );
 
-      deleteButton.addEventListener("click", () => {
-        if (!confirm(
-          `Delete ${group.name} version ${version.number}?`
-        )) return;
-
-        const previous = group.versions;
-
-        group.versions = group.versions.filter(
-          v => v.id !== version.id
-        );
-
-        // Remove the group if no versions remain
-        const previousSoftware = [...software];
-
-        if (group.versions.length === 0) {
-          software = software.filter(g => g.id !== group.id);
-        }
-
-        if (!saveSoftware()) {
-          software = previousSoftware;
-          group.versions = previous;
-        }
-
-        refresh();
-      });
-
-      row.append(versionText, select, deleteButton);
-      details.appendChild(row);
-    }
-
-    list.appendChild(details);
-  }
-
-  document.getElementById("emptyMessage").hidden =
-    visibleCount > 0;
-}
-
-function refresh() {
-  updateDashboard();
-  renderSoftware();
-}
-
-// Add a software version
-form.addEventListener("submit", event => {
-  event.preventDefault();
-
-  const name = document.getElementById("softwareName")
-    .value.trim();
-  const publisher = document.getElementById("publisher")
-    .value.trim();
-  const number = document.getElementById("version")
-    .value.trim();
-  const status = document.getElementById("status").value;
-
-  if (!name || !publisher || !number ||
-      !STATUSES.includes(status)) return;
-
-  let group = software.find(g =>
-    g.name.toLowerCase() === name.toLowerCase() &&
-    g.publisher.toLowerCase() === publisher.toLowerCase()
-  );
-
-  // Prevent duplicate version numbers within a group
-  if (group && group.versions.some(v =>
-    v.number.toLowerCase() === number.toLowerCase()
-  )) {
-    alert("This software version already exists.");
-    return;
-  }
-
-  const previous = JSON.stringify(software);
-
-  if (!group) {
-    group = {
-      id: newId(),
-      name,
-      publisher,
-      versions: []
-    };
-
-    software.push(group);
-  }
-
-  group.versions.push({
-    id: newId(),
-    number,
-    status
-  });
-
-  if (!saveSoftware()) {
-    software = JSON.parse(previous);
-    return;
-  }
-
-  refresh();
-  form.reset();
-  document.getElementById("softwareName").focus();
-});
-
-search.addEventListener("input", renderSoftware);
-filter.addEventListener("change", renderSoftware);
-
-// CSV export
-document.getElementById("exportBtn")
-  .addEventListener("click", () => {
-
-    const safeCell = value => {
-      let text = String(value);
-
-      // Prevent spreadsheet formula execution
-      if (/^\s*[=+\-@]/.test(text)) {
-        text = "'" + text;
-      }
-
-      return '"' + text.replace(/"/g, '""') + '"';
-    };
-
-    const rows = [
-      ["Software Name", "Publisher", "Version", "Status"]
-    ];
-
-    for (const group of software) {
-      for (const version of group.versions) {
-        rows.push([
-          group.name,
-          group.publisher,
-          version.number,
-          version.status
-        ]);
-      }
-    }
-
-    const csv = rows
-      .map(row => row.map(safeCell).join(","))
-      .join("\r\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8"
+      row.append(number, status);
+      versions.appendChild(row);
     });
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    card.appendChild(versions);
+    softwareList.appendChild(card);
+  });
+}
 
-    link.href = url;
-    link.download = "software-versions.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+function escapeCsv(value) {
+  const text = String(value ?? "");
 
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // Prevent spreadsheet formula injection.
+  const safe = /^[\s]*[=+\-@\t\r]/.test(text)
+    ? "'" + text
+    : text;
+
+  return '"' + safe.replaceAll('"', '""') + '"';
+}
+
+function exportCsv() {
+  const rows = [
+    ["Software", "Publisher", "Version", "Status"]
+  ];
+
+  getFilteredInventory().forEach(software => {
+    software.versions.forEach(version => {
+      rows.push([
+        software.name,
+        software.publisher,
+        version.number,
+        version.status
+      ]);
+    });
   });
 
-// Initialize
-refresh();
+  const csv = rows
+    .map(row => row.map(escapeCsv).join(","))
+    .join("\r\n");
+
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "softtrack-inventory.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function loadInventory() {
+  try {
+    const response = await fetch("/api/software", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid inventory response");
+    }
+
+    inventory = data;
+    loadError = false;
+  } catch (error) {
+    console.error("Inventory loading failed:", error);
+    inventory = [];
+    loadError = true;
+  }
+
+  updateDashboard();
+  renderInventory();
+}
+
+searchInput.addEventListener("input", renderInventory);
+statusFilter.addEventListener("change", renderInventory);
+exportBtn.addEventListener("click", exportCsv);
+
+loadInventory();

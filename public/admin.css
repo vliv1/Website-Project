@@ -1,0 +1,818 @@
+
+
+
+/* ==========================================
+   SoftTrack V3 — Administrator Dashboard
+   ========================================== */
+
+/* Page */
+
+.admin-page {
+  min-height: 100vh;
+  margin: 0;
+  background: #f3f6fb;
+  color: #172033;
+  font-family: Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ==========================================
+   LEFT SIDEBAR
+   ========================================== */
+
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  box-sizing: border-box;
+  background: #14213d;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 18px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.admin-sidebar[hidden] {
+  display: none;
+}
+
+.admin-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 30px;
+  border-bottom: 1px solid #334155;
+}
+
+.admin-sidebar-logo {
+  font-size: 32px;
+  color: #60a5fa;
+}
+
+.admin-sidebar-brand strong {
+  display: block;
+  font-size: 20px;
+}
+
+.admin-sidebar-brand small {
+  display: block;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.admin-sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 26px;
+}
+
+.admin-sidebar-links a {
+  display: block;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 14px 16px;
+  border-radius: 10px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.admin-sidebar-links a:hover,
+.admin-sidebar-links a:focus-visible,
+.admin-sidebar-links a.active {
+  background: #2563eb;
+  color: white;
+}
+
+.admin-sidebar-links a:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.admin-sidebar-footer {
+  margin-top: auto;
+  padding: 20px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #86efac;
+  font-size: 13px;
+}
+
+.admin-sidebar-footer small {
+  color: #94a3b8;
+}
+
+/* ==========================================
+   ADMIN HEADER
+   ========================================== */
+
+.admin-page .admin-header {
+  margin-left: 250px;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 30px 5%;
+  background: #14213d;
+  color: white;
+}
+
+.admin-eyebrow {
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #93c5fd;
+}
+
+.admin-header h1 {
+  margin: 8px 0;
+}
+
+.admin-header p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.admin-header-actions button,
+.admin-link,
+#refreshButton {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.admin-link {
+  display: inline-block;
+  background: #e2e8f0;
+  color: #14213d;
+  text-decoration: none;
+}
+
+.admin-link:hover {
+  background: #cbd5e1;
+}
+
+.admin-header-actions button {
+  background: #ef4444;
+  color: white;
+}
+
+.admin-header-actions button:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.admin-header-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================
+   MAIN DASHBOARD CONTENT
+   ========================================== */
+
+.admin-page .admin-container {
+  margin-left: 250px;
+  margin-right: auto;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 30px;
+}
+
+.admin-container[hidden] {
+  display: none;
+}
+
+/* Navigation scroll targets */
+
+#adminDashboard,
+#adminInventory,
+#adminAddSoftware,
+#adminAudit {
+  scroll-margin-top: 24px;
+}
+
+/* ==========================================
+   DASHBOARD STATISTICS
+   ========================================== */
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 25px;
+}
+
+.admin-stat,
+.admin-panel {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+}
+
+.admin-stat span {
+  display: block;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.admin-stat strong {
+  display: block;
+  font-size: 32px;
+  color: #14213d;
+}
+
+/* ==========================================
+   DASHBOARD PANELS
+   ========================================== */
+
+.admin-panel {
+  margin-bottom: 25px;
+}
+
+.admin-panel h2 {
+  margin-top: 0;
+}
+
+.admin-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.admin-panel-heading p,
+.admin-publisher {
+  color: #64748b;
+}
+
+/* ==========================================
+   INVENTORY CONTROLS
+   ========================================== */
+
+#refreshButton {
+  background: #2563eb;
+  color: white;
+}
+
+#refreshButton:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+#refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-filters {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.admin-filters input,
+.admin-filters select {
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-filters input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-filters input:focus,
+.admin-filters select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+#adminMessage {
+  color: #64748b;
+}
+
+/* ==========================================
+   SOFTWARE INVENTORY CARDS
+   ========================================== */
+
+.admin-software-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 14px;
+  background: #fff;
+}
+
+.admin-software-title {
+  margin: 0 0 5px;
+  color: #14213d;
+}
+
+.admin-publisher {
+  margin: 0 0 15px;
+}
+
+.admin-version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 0;
+}
+
+/* ==========================================
+   APPROVAL STATUS BADGES
+   ========================================== */
+
+.admin-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-denied {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ==========================================
+   ADD SOFTWARE FORM
+   ========================================== */
+
+.admin-add-form {
+  margin-top: 20px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.admin-form-grid input,
+.admin-form-grid select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #172033;
+  font: inherit;
+}
+
+.admin-form-grid input:focus,
+.admin-form-grid select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+#addSoftwareButton {
+  margin-top: 20px;
+  padding: 12px 20px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font: inherit;
+  cursor: pointer;
+}
+
+#addSoftwareButton:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+#addSoftwareButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#addSoftwareMessage {
+  margin-top: 12px;
+  color: #64748b;
+}
+
+/* ==========================================
+   TABLET AND MOBILE
+   ========================================== */
+
+@media (max-width: 1000px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .admin-sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    padding: 16px;
+  }
+
+  .admin-sidebar-brand {
+    padding-bottom: 14px;
+  }
+
+  .admin-sidebar-links {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 14px;
+  }
+
+  .admin-sidebar-links a {
+    padding: 10px 12px;
+  }
+
+  .admin-sidebar-footer {
+    display: none;
+  }
+
+  .admin-page .admin-header,
+  .admin-page .admin-container {
+    margin-left: 0;
+  }
+
+  .admin-page .admin-container {
+    padding: 20px;
+  }
+
+  .admin-header {
+    padding: 24px 20px;
+  }
+
+  .admin-filters {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-panel,
+  .admin-stat {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-version-row {
+    flex-wrap: wrap;
+  }
+
+  .admin-header-actions {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .admin-sidebar-links a {
+    transition: none;
+  }
+}
+
+
+/* ==========================================
+   SOFTTRACK V3 LIGHT / DARK MODE
+   ========================================== */
+
+/* Smooth theme transitions */
+
+.admin-page,
+.admin-page .admin-header,
+.admin-page .admin-panel,
+.admin-page .admin-stat,
+.admin-page .admin-software-card,
+.admin-page input,
+.admin-page select {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Theme toggle button */
+
+#adminThemeToggle {
+  background: #334155;
+  color: #ffffff;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#adminThemeToggle:hover {
+  background: #475569;
+}
+
+#adminThemeToggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+/* ==========================================
+   DARK MODE
+   ========================================== */
+
+.admin-page[data-theme="dark"] {
+  background: #0b1220;
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+
+/* Header */
+
+.admin-page[data-theme="dark"] .admin-header {
+  background: #111c32;
+  color: #f8fafc;
+}
+
+/* Cards and panels */
+
+.admin-page[data-theme="dark"] .admin-stat,
+.admin-page[data-theme="dark"] .admin-panel {
+  background: #18243a;
+  color: #e2e8f0;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+.admin-page[data-theme="dark"] .admin-stat strong,
+.admin-page[data-theme="dark"] .admin-software-title {
+  color: #f8fafc;
+}
+
+.admin-page[data-theme="dark"] .admin-stat span,
+.admin-page[data-theme="dark"] .admin-panel-heading p,
+.admin-page[data-theme="dark"] .admin-publisher,
+.admin-page[data-theme="dark"] #adminMessage,
+.admin-page[data-theme="dark"] #addSoftwareMessage {
+  color: #a8b8ce;
+}
+
+/* Software inventory */
+
+.admin-page[data-theme="dark"] .admin-software-card {
+  background: #1e2d45;
+  border-color: #334155;
+}
+
+.admin-page[data-theme="dark"] .admin-version-row {
+  border-color: #334155;
+}
+
+/* Search, filters and form fields */
+
+.admin-page[data-theme="dark"] .admin-filters input,
+.admin-page[data-theme="dark"] .admin-filters select,
+.admin-page[data-theme="dark"] .admin-form-grid input,
+.admin-page[data-theme="dark"] .admin-form-grid select {
+  background: #101b2e;
+  color: #f8fafc;
+  border-color: #475569;
+}
+
+.admin-page[data-theme="dark"] input::placeholder {
+  color: #94a3b8;
+}
+
+/* Sidebar stays navy in both modes */
+
+.admin-page[data-theme="dark"] .admin-sidebar {
+  background: #0f172a;
+}
+
+/* Keep approval badges readable */
+
+.admin-page[data-theme="dark"] .status-approved {
+  background: #14532d;
+  color: #dcfce7;
+}
+
+.admin-page[data-theme="dark"] .status-pending {
+  background: #78350f;
+  color: #fef3c7;
+}
+
+.admin-page[data-theme="dark"] .status-denied {
+  background: #7f1d1d;
+  color: #fee2e2;
+}
+
+/* Respect reduced motion preferences */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page,
+  .admin-page .admin-header,
+  .admin-page .admin-panel,
+  .admin-page .admin-stat,
+  .admin-page .admin-software-card,
+  .admin-page input,
+  .admin-page select {
+    transition: none;
+  }
+}
+
+
+/* ==========================================
+   EDIT SOFTWARE VERSION
+   ========================================== */
+
+.admin-edit-button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-edit-button:hover {
+  background: #e2e8f0;
+}
+
+.admin-version-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  margin-top: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.admin-version-editor label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.admin-version-editor input,
+.admin-version-editor select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-edit-save,
+.admin-edit-cancel {
+  padding: 9px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-edit-save {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.admin-edit-cancel {
+  background: #e2e8f0;
+  color: #1e293b;
+  border: none;
+}
+
+.admin-edit-save:disabled,
+.admin-edit-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark mode */
+
+.admin-page[data-theme="dark"] .admin-version-editor {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.admin-page[data-theme="dark"] .admin-edit-button,
+.admin-page[data-theme="dark"] .admin-edit-cancel {
+  background: #334155;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.admin-page[data-theme="dark"] .admin-version-editor input,
+.admin-page[data-theme="dark"] .admin-version-editor select {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+
+
+/* ==========================================
+   AUDIT HISTORY
+   ========================================== */
+
+.admin-audit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-audit-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.admin-audit-card {
+  padding: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-audit-card h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.admin-audit-card p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.admin-page[data-theme="dark"] .admin-audit-card {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+

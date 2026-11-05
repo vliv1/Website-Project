@@ -1,40 +1,260 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
-  <title>SoftTrack Administration</title>
-  <link rel="stylesheet" href="/login.css">
+
+  <title>SoftTrack | Admin Dashboard</title>
+
+  
+  <link rel="stylesheet" href="/admin.css">
+
   <script src="/admin.js" defer></script>
 </head>
-<body>
-  <main class="login-card">
-    <div class="logo">ST</div>
 
-    <h1>Admin Dashboard</h1>
-    <p class="subtitle">
-      You're signed in to SoftTrack.
-    </p>
+<body class="admin-page">
 
-    <p id="adminEmail"></p>
+  <aside class="admin-sidebar" id="adminSidebar">
 
-    <p>
-      Your administrator account is active.
-      Software management tools will be added
-      in the next phase.
-    </p>
+  <div class="admin-sidebar-brand">
+    <span class="admin-sidebar-logo">◈</span>
+    <div>
+      <strong>SoftTrack</strong>
+      <small>V3 Administration</small>
+    </div>
+  </div>
 
-    <button id="logoutButton" type="button">
-      Sign Out
+  <nav class="admin-sidebar-links"
+       aria-label="Admin navigation">
+
+    <a href="#adminDashboard" class="active">
+      ▦ Dashboard
+    </a>
+
+    <a href="#adminInventory">
+      ▣ Software Inventory
+    </a>
+
+    <a href="#adminAddSoftware">
+      ＋ Add Software
+    </a>
+
+    <a href="#adminAudit">
+      ◷ Audit History
+    </a>
+
+  </nav>
+
+  <div class="admin-sidebar-footer">
+    <span>● System Online</span>
+    <small>SoftTrack Version 3</small>
+  </div>
+
+</aside>
+
+
+
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">SOFTTRACK V3</span>
+      <h1>Admin Dashboard</h1>
+      <p>Software approval management</p>
+    </div>
+
+    <div class="admin-header-actions">
+  <button
+    id="adminThemeToggle"
+    type="button"
+    aria-label="Switch to dark mode"
+    aria-pressed="false"
+  >
+    🌙 Dark Mode
+  </button>
+
+  <span id="adminEmail">Verifying session...</span>
+
+      <a href="/" class="admin-link">
+        Public Inventory
+      </a>
+
+      <button id="logoutButton" type="button">
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <main class="admin-container" id="adminContent" hidden>
+
+    <section id="adminDashboard" class="admin-stats">
+      <article class="admin-stat">
+        <span>Software Titles</span>
+        <strong id="softwareCount">0</strong>
+      </article>
+
+      <article class="admin-stat">
+        <span>Approved Versions</span>
+        <strong id="approvedCount">0</strong>
+      </article>
+
+      <article class="admin-stat">
+        <span>Pending Reviews</span>
+        <strong id="pendingCount">0</strong>
+      </article>
+
+      <article class="admin-stat">
+        <span>Denied Versions</span>
+        <strong id="deniedCount">0</strong>
+      </article>
+    </section>
+
+    <section id="adminInventory" class="admin-panel">
+      <div class="admin-panel-heading">
+        <div>
+          <h2>Software Inventory</h2>
+          <p>Review software and approval statuses.</p>
+        </div>
+
+        <button id="refreshButton" type="button">
+          Refresh
+        </button>
+      </div>
+
+      <div class="admin-filters">
+        <input
+          id="adminSearch"
+          type="search"
+          placeholder="Search software or publisher"
+          aria-label="Search software inventory"
+        >
+
+        <select id="adminStatusFilter"
+                aria-label="Filter approval status">
+          <option value="All">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Denied">Denied</option>
+        </select>
+      </div>
+
+      <p id="adminMessage" role="status">
+        Loading software inventory...
+      </p>
+
+      <div id="adminSoftwareList"></div>
+    </section>
+
+    <!-- ADD SOFTWARE -->
+<section id="adminAddSoftware" class="admin-panel">
+
+  <div class="admin-panel-heading">
+    <div>
+      <h2>＋ Add Software</h2>
+      <p>Add a new software version to SoftTrack.</p>
+    </div>
+  </div>
+
+  <form id="adminSoftwareForm" class="admin-add-form">
+
+    <div class="admin-form-grid">
+
+      <label>
+        Software Name
+        <input
+          id="newSoftwareName"
+          type="text"
+          maxlength="120"
+          placeholder="Google Chrome"
+          required
+        >
+      </label>
+
+      <label>
+        Publisher
+        <input
+          id="newPublisher"
+          type="text"
+          maxlength="120"
+          placeholder="Google"
+          required
+        >
+      </label>
+
+      <label>
+        Version
+        <input
+          id="newVersion"
+          type="text"
+          maxlength="80"
+          placeholder="130.0.0"
+          required
+        >
+      </label>
+
+      <label>
+        Approval Status
+        <select id="newStatus">
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Denied">Denied</option>
+        </select>
+      </label>
+
+    </div>
+
+    <button
+      id="addSoftwareButton"
+      type="submit"
+    
+    >
+      ＋ Add Software Version
     </button>
 
-    <a class="back-link" href="/">
-      View Public Inventory
-    </a>
+    <p id="addSoftwareMessage" role="status" aria-live="polite">
+      Ready to add software.
+    </p>
+
+  </form>
+
+</section>
+
+   
+<section id="adminAudit" class="admin-panel">
+  <div class="admin-audit-header">
+    <div>
+      <h2>◷ Audit History</h2>
+      <p>
+        Review software creation, version updates,
+        and approval status changes.
+      </p>
+    </div>
+
+    <button
+      id="refreshAuditButton"
+      type="button"
+      class="admin-refresh-button"
+    >
+      ↻ Refresh History
+    </button>
+  </div>
+
+  <p
+    id="auditMessage"
+    role="status"
+    aria-live="polite"
+  >
+    Audit history is ready to load.
+  </p>
+
+  <div id="auditHistoryList" class="admin-audit-list"></div>
+</section>
+
+
   </main>
+
 </body>
 </html>
