@@ -1,0 +1,72 @@
+
+/* Version 2: Software groups */
+
+.help-text {
+  color: #64748b;
+  margin-top: -5px;
+  margin-bottom: 20px;
+}
+
+.software-group {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.group-heading {
+  padding: 20px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.group-heading:hover {
+  background: #eff6ff;
+}
+
+.group-heading strong {
+  display: block;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.group-heading small {
+  display: block;
+  color: #64748b;
+}
+
+.version-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.version-row span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.version-row select {
+  width: 180px;
+}
+
+.version-row button {
+  width: auto;
+}
+
+@media (max-width: 600px) {
+  .version-row {
+    flex-wrap: wrap;
+  }
+
+  .version-row span {
+    flex-basis: 100%;
+  }
+
+  .version-row select {
+    flex: 1;
+  }
+}
