@@ -618,3 +618,184 @@ section {
     transition: none;
   }
 }
+
+
+
+/* ===== SoftTrack Dark Mode ===== */
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 16px;
+  background: #e2e8f0;
+  color: #1e293b;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.theme-toggle:hover {
+  background: #cbd5e1;
+}
+
+html.dark-mode {
+  color-scheme: dark;
+  --background: #0b1220;
+  --surface: #1e293b;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #334155;
+}
+
+html.dark-mode body {
+  background: #0b1220;
+  color: #f1f5f9;
+}
+
+html.dark-mode .sidebar {
+  background: #080f1e;
+}
+
+html.dark-mode .topbar {
+  background: #111c2f;
+  border-bottom-color: #334155;
+  color: #f1f5f9;
+}
+
+html.dark-mode .topbar h1,
+html.dark-mode .panel h2 {
+  color: #f8fafc;
+}
+
+html.dark-mode .topbar p,
+html.dark-mode .eyebrow,
+html.dark-mode .help-text {
+  color: #94a3b8;
+}
+
+html.dark-mode .topbar-badge {
+  background: #123d30;
+  color: #86efac;
+}
+
+html.dark-mode .theme-toggle {
+  background: #334155;
+  color: #f8fafc;
+}
+
+html.dark-mode .theme-toggle:hover {
+  background: #475569;
+}
+
+html.dark-mode .card,
+html.dark-mode .panel {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 4px 16px #00000020;
+}
+
+html.dark-mode .card p {
+  color: #94a3b8;
+}
+
+html.dark-mode .card.approved h2 {
+  color: #4ade80;
+}
+
+html.dark-mode .card.pending h2 {
+  color: #fbbf24;
+}
+
+html.dark-mode .card.denied h2 {
+  color: #f87171;
+}
+
+html.dark-mode input,
+html.dark-mode select {
+  background: #111c2f;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+html.dark-mode input::placeholder {
+  color: #94a3b8;
+}
+
+html.dark-mode input:focus,
+html.dark-mode select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px #2563eb40;
+}
+
+html.dark-mode .software-group {
+  background: #162238;
+  border-color: #334155;
+}
+
+html.dark-mode .software-group:hover {
+  border-color: #60a5fa;
+}
+
+html.dark-mode .group-heading {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+html.dark-mode .group-heading:hover {
+  background: #293b55;
+}
+
+html.dark-mode .group-heading small {
+  color: #94a3b8;
+}
+
+html.dark-mode .version-row {
+  border-top-color: #334155;
+  color: #f1f5f9;
+}
+
+html.dark-mode .version-row:hover {
+  background: #24344b;
+}
+
+html.dark-mode .panel-icon {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+html.dark-mode .export-btn {
+  background: #1e3a5f;
+  color: #bfdbfe;
+}
+
+html.dark-mode .export-btn:hover {
+  background: #254b78;
+}
+
+html.dark-mode button.danger {
+  background: #54262b;
+  color: #fecaca;
+}
+
+html.dark-mode button.danger:hover {
+  background: #743139;
+}
+
+html.dark-mode #emptyMessage {
+  color: #94a3b8;
+}
+
+@media (max-width: 600px) {
+  .topbar-actions {
+    width: 100%;
+  }
+}
