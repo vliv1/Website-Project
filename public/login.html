@@ -1,0 +1,56 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <title>Admin Login | SoftTrack</title>
+  <link rel="stylesheet" href="/login.css">
+  <script src="/login.js" defer></script>
+</head>
+<body>
+  <main class="login-card">
+    <div class="logo">ST</div>
+
+    <h1>Welcome to SoftTrack</h1>
+    <p class="subtitle">
+      Administrator sign in
+    </p>
+
+    <form id="loginForm">
+      <label for="email">Email address</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="username"
+        required
+      >
+
+      <label for="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        required
+      >
+
+      <p id="errorMessage"
+         role="alert"
+         aria-live="polite"></p>
+
+      <button type="submit" id="loginButton">
+        Sign In
+      </button>
+    </form>
+
+    <a class="back-link" href="/">
+      ← Back to Software Inventory
+    </a>
+  </main>
+</body>
+</html>

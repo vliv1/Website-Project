@@ -12,8 +12,18 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@inquirer/prompts": "^8.7.5",
+    "argon2": "^0.45.2",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
+    "express-openid-connect": "^3.4.0",
+    "express-rate-limit": "^8.7.3",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
     "pg": "^8.23.1"
+  },
+  "allowScripts": {
+    "argon2@0.45.2": true
   }
 }
