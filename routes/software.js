@@ -71,6 +71,8 @@ async function recordApprovalEvent(client, {
   version,
   oldStatus = null,
   newStatus = null,
+  oldVersion = null,
+  newVersion = null,
   action,
   adminId,
   adminEmail
@@ -83,11 +85,16 @@ async function recordApprovalEvent(client, {
       version,
       old_status,
       new_status,
+      old_version,
+      new_version,
       action,
       admin_id,
       admin_email
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    VALUES (
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10, $11
+    )`,
     [
       softwareVersionId,
       softwareName,
@@ -95,12 +102,15 @@ async function recordApprovalEvent(client, {
       version,
       oldStatus,
       newStatus,
+      oldVersion,
+      newVersion,
       action,
       adminId,
       adminEmail
     ]
   );
 }
+
 
 // PUBLIC: Read all software and versions.
 router.get("/", async (req, res) => {
@@ -162,6 +172,8 @@ router.get("/audit", async (req, res) => {
          software_name,
          publisher,
          version,
+         old_status,
+         new_status,
          old_status,
          new_status,
          action,
@@ -476,19 +488,23 @@ router.patch("/versions/:id", async (req, res) => {
       });
     }
 
-    if (versionChanged) {
-      await recordApprovalEvent(client, {
-        softwareVersionId: id,
-        softwareName: previous.software_name,
-        publisher: previous.publisher,
-        version: newVersion,
-        oldStatus: previous.status,
-        newStatus: status,
-        action: "version_updated",
-        adminId: req.session.adminId,
-        adminEmail: req.session.adminEmail
-      });
-    }
+    
+if (versionChanged) {
+  await recordApprovalEvent(client, {
+    softwareVersionId: id,
+    softwareName: previous.software_name,
+    publisher: previous.publisher,
+    version: newVersion,
+    oldStatus: previous.status,
+    newStatus: status,
+    oldVersion: previous.version,
+    newVersion: newVersion,
+    action: "version_updated",
+    adminId: req.session.adminId,
+    adminEmail: req.session.adminEmail
+  });
+}
+
 
     await client.query("COMMIT");
 
