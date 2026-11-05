@@ -348,3 +348,273 @@ button.danger:hover {
     transition: none !important;
   }
 }
+
+
+
+/* ===== SoftTrack Sidebar Layout ===== */
+
+body {
+  padding-left: 260px;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  background: #101d36;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 15px;
+  z-index: 1000;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 12px 35px;
+}
+
+.brand-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: #2563eb;
+  border-radius: 12px;
+  font-size: 27px;
+}
+
+.brand strong {
+  display: block;
+  font-size: 21px;
+  letter-spacing: -.5px;
+}
+
+.brand small {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #a9bad2;
+  text-decoration: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 550;
+  transition: .2s;
+}
+
+.nav-link:hover {
+  color: white;
+  background: #1e3354;
+}
+
+.nav-link.active {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 12px #00000020;
+}
+
+.nav-icon {
+  font-size: 21px;
+  width: 23px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 18px 12px 5px;
+  border-top: 1px solid #ffffff20;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.sidebar-footer small {
+  display: block;
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.online-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  background: white;
+  color: #1e293b;
+  padding: 28px 36px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: none;
+}
+
+.topbar h1 {
+  margin: 3px 0 4px;
+  font-size: 28px;
+  color: #172554;
+}
+
+.topbar p {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+.eyebrow {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1.5px;
+}
+
+.topbar-badge {
+  padding: 9px 14px;
+  border-radius: 30px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.panel-heading h2 {
+  margin: 0;
+}
+
+.panel-heading .help-text {
+  margin: 5px 0 0;
+}
+
+.panel-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  flex-shrink: 0;
+}
+
+.export-btn {
+  margin-left: auto;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.export-btn:hover {
+  background: #dbeafe;
+}
+
+.mobile-bar,
+.sidebar-overlay {
+  display: none;
+}
+
+section {
+  scroll-margin-top: 24px;
+}
+
+/* Tablet and mobile */
+
+@media (max-width: 900px) {
+  body {
+    padding-left: 0;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #101d36;
+    color: white;
+    padding: 12px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+  }
+
+  .menu-toggle {
+    background: #253b60;
+    padding: 7px 13px;
+    font-size: 21px;
+  }
+
+  .sidebar-overlay.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #00000080;
+    z-index: 950;
+  }
+
+  .topbar {
+    padding: 22px 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inventory-heading {
+    flex-wrap: wrap;
+  }
+
+  .export-btn {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}

@@ -5,106 +5,232 @@
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
-  <title>Software Approval Tracker V2</title>
+  <title>SoftTrack | Dashboard</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <header>
-    <div class="container">
-      <h1>Software Approval Tracker</h1>
-      <p>Software inventory and version approvals</p>
+
+  <!-- Mobile top bar -->
+  <div class="mobile-bar">
+    <button id="menuToggle" class="menu-toggle"
+            aria-label="Open navigation"
+            aria-expanded="false"
+            aria-controls="sidebar">☰</button>
+    <strong>SoftTrack</strong>
+  </div>
+
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <!-- Navigation sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <div>
+        <strong>SoftTrack</strong>
+        <small>Software Management</small>
+      </div>
     </div>
-  </header>
 
-  <main class="container">
-    <section class="dashboard">
-      <div class="card">
-        <h2 id="softwareCount">0</h2>
-        <p>Software Titles</p>
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="#dashboard" class="nav-link active"
+         data-page="dashboard">
+        <span class="nav-icon">▦</span>
+        Dashboard
+      </a>
+
+      <a href="#inventory" class="nav-link"
+         data-page="inventory">
+        <span class="nav-icon">▣</span>
+        Software Inventory
+      </a>
+
+      <a href="#add-software" class="nav-link"
+         data-page="add-software">
+        <span class="nav-icon">＋</span>
+        Add Software
+      </a>
+
+      <a href="#pending" class="nav-link"
+         data-page="pending">
+        <span class="nav-icon">◷</span>
+        Pending Reviews
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="online-dot"></span>
+      System Online
+      <small>SoftTrack Version 2</small>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">SOFTWARE MANAGEMENT</span>
+        <h1>Dashboard</h1>
+        <p>Manage software versions and approvals.</p>
       </div>
-      <div class="card approved">
-        <h2 id="approvedCount">0</h2>
-        <p>Approved Versions</p>
-      </div>
-      <div class="card pending">
-        <h2 id="pendingCount">0</h2>
-        <p>Pending Versions</p>
-      </div>
-      <div class="card denied">
-        <h2 id="deniedCount">0</h2>
-        <p>Denied Versions</p>
-      </div>
-    </section>
+      <span class="topbar-badge">● Local Inventory</span>
+    </header>
 
-    <section class="panel">
-      <h2>Add Software Version</h2>
-      <p class="help-text">
-        Existing software names are grouped automatically.
-      </p>
+    <main class="container">
+      <section id="dashboard" class="dashboard">
+        <div class="card">
+          <h2 id="softwareCount">0</h2>
+          <p>Software Titles</p>
+        </div>
+        <div class="card approved">
+          <h2 id="approvedCount">0</h2>
+          <p>Approved Versions</p>
+        </div>
+        <div class="card pending">
+          <h2 id="pendingCount">0</h2>
+          <p>Pending Reviews</p>
+        </div>
+        <div class="card denied">
+          <h2 id="deniedCount">0</h2>
+          <p>Denied Versions</p>
+        </div>
+      </section>
 
-      <form id="softwareForm">
-        <div class="form-grid">
-          <label>
-            Software Name
-            <input id="softwareName" required
-                   maxlength="120"
-                   placeholder="Google Chrome">
-          </label>
-
-          <label>
-            Publisher
-            <input id="publisher" required
-                   maxlength="120"
-                   placeholder="Google">
-          </label>
-
-          <label>
-            Version
-            <input id="version" required
-                   maxlength="80"
-                   placeholder="130.0.0">
-          </label>
-
-          <label>
-            Approval Status
-            <select id="status">
-              <option value="Pending">Pending Approval</option>
-              <option value="Approved">Approved</option>
-              <option value="Denied">Denied</option>
-            </select>
-          </label>
+      <section id="add-software" class="panel">
+        <div class="panel-heading">
+          <span class="panel-icon">＋</span>
+          <div>
+            <h2>Add Software Version</h2>
+            <p class="help-text">
+              Existing software names are grouped automatically.
+            </p>
+          </div>
         </div>
 
-        <button type="submit">Add Software Version</button>
-      </form>
-    </section>
+        <form id="softwareForm">
+          <div class="form-grid">
+            <label>
+              Software Name
+              <input id="softwareName" required
+                     maxlength="120"
+                     placeholder="Google Chrome">
+            </label>
 
-    <section class="panel">
-      <div class="section-heading">
-        <h2>Software Inventory</h2>
-        <button id="exportBtn" type="button">
-          Export CSV
-        </button>
-      </div>
+            <label>
+              Publisher
+              <input id="publisher" required
+                     maxlength="120"
+                     placeholder="Google">
+            </label>
 
-      <div class="filters">
-        <input id="search" type="search"
-               placeholder="Search software or publisher">
+            <label>
+              Version
+              <input id="version" required
+                     maxlength="80"
+                     placeholder="130.0.0">
+            </label>
 
-        <select id="statusFilter">
-          <option value="All">All Statuses</option>
-          <option value="Approved">Approved</option>
-          <option value="Pending">Pending Approval</option>
-          <option value="Denied">Denied</option>
-        </select>
-      </div>
+            <label>
+              Approval Status
+              <select id="status">
+                <option value="Pending">Pending Approval</option>
+                <option value="Approved">Approved</option>
+                <option value="Denied">Denied</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">＋ Add Software Version</button>
+        </form>
+      </section>
 
-      <div id="softwareList"></div>
-      <p id="emptyMessage" hidden>
-        No software found. Add your first version above!
-      </p>
-    </section>
-  </main>
+      <section id="inventory" class="panel">
+        <div class="panel-heading inventory-heading">
+          <span class="panel-icon">▣</span>
+          <div>
+            <h2>Software Inventory</h2>
+            <p class="help-text">
+              Browse and manage approved software versions.
+            </p>
+          </div>
+          <button id="exportBtn" type="button"
+                  class="export-btn">Export CSV</button>
+        </div>
+
+        <div class="filters">
+          <input id="search" type="search"
+                 placeholder="Search software, publisher or version">
+
+          <select id="statusFilter">
+            <option value="All">All Statuses</option>
+            <option value="Approved">Approved</option>
+            <option value="Pending">Pending Approval</option>
+            <option value="Denied">Denied</option>
+          </select>
+        </div>
+
+        <div id="softwareList"></div>
+        <p id="emptyMessage" hidden>
+          No software found. Add your first version above!
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    const toggle = document.getElementById("menuToggle");
+    const navLinks = document.querySelectorAll(".nav-link");
+
+    function closeMenu() {
+      sidebar.classList.remove("open");
+      overlay.classList.remove("visible");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Open navigation");
+    }
+
+    toggle.addEventListener("click", () => {
+      const isOpen = sidebar.classList.toggle("open");
+      overlay.classList.toggle("visible", isOpen);
+      toggle.setAttribute("aria-expanded", String(isOpen));
+      toggle.setAttribute(
+        "aria-label",
+        isOpen ? "Close navigation" : "Open navigation"
+      );
+    });
+
+    overlay.addEventListener("click", closeMenu);
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeMenu();
+    });
+
+    navLinks.forEach(link => {
+      link.addEventListener("click", event => {
+        const page = link.dataset.page;
+
+        if (page === "pending") {
+          event.preventDefault();
+          document.getElementById("statusFilter").value =
+            "Pending";
+          document.getElementById("statusFilter")
+            .dispatchEvent(new Event("change"));
+          document.getElementById("inventory")
+            .scrollIntoView({ behavior: "smooth" });
+        } else if (page === "inventory") {
+          document.getElementById("statusFilter").value =
+            "All";
+          document.getElementById("statusFilter")
+            .dispatchEvent(new Event("change"));
+        }
+
+        navLinks.forEach(item =>
+          item.classList.toggle("active", item === link)
+        );
+
+        closeMenu();
+      });
+    });
+  </script>
 </body>
 </html>
