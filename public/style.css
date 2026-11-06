@@ -672,7 +672,14 @@ html.dark-mode body {
 }
 
 html.dark-mode .sidebar {
-  background: #080f1e;
+ 
+background: linear-gradient(
+  165deg,
+  #123A78 0%,
+  #1759AD 55%,
+  #1688E8 100%
+);
+
 }
 
 html.dark-mode .topbar {
