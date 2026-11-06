@@ -719,41 +719,133 @@ router.delete("/versions/:id", async (req, res) => {
 });
 
 // ADMIN: Delete an entire software group.
+
 router.delete("/:id", async (req, res) => {
-  if (!isUUID(req.params.id)) {
+  const { id } = req.params;
+
+  if (!isUUID(id)) {
     return res.status(400).json({
       error: "Invalid software ID"
     });
   }
 
+  let client;
+
   try {
-    const result = await pool.query(
-      `DELETE FROM software
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    // Lock the software group before deleting it.
+    const existing = await client.query(
+      `SELECT id, name, publisher
+       FROM software
        WHERE id = $1
-       RETURNING id`,
-      [req.params.id]
+       FOR UPDATE`,
+      [id]
     );
 
-    if (!result.rowCount) {
+    if (!existing.rowCount) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         error: "Software not found"
       });
     }
 
+    const software = existing.rows[0];
+
+    // Read and lock all versions belonging to this group.
+    const versionsResult = await client.query(
+      `SELECT id, version, status
+       FROM software_versions
+       WHERE software_id = $1
+       ORDER BY id
+       FOR UPDATE`,
+      [id]
+    );
+
+    const versions = versionsResult.rows;
+
+    // Preserve an audit record for every deleted version.
+    for (const version of versions) {
+      await recordApprovalEvent(client, {
+        softwareVersionId: version.id,
+        softwareName: software.name,
+        publisher: software.publisher,
+        version: version.version,
+        oldStatus: version.status,
+        newStatus: null,
+        deletedStatus: version.status,
+        action: "deleted",
+        adminId: req.session.adminId,
+        adminEmail: req.session.adminEmail
+      });
+    }
+
+    // Also preserve the deletion of the software group.
+    // This works even if the group has zero versions.
+    await recordApprovalEvent(client, {
+      softwareVersionId: null,
+      softwareName: software.name,
+      publisher: software.publisher,
+      version: "",
+      oldSoftwareName: software.name,
+      newSoftwareName: null,
+      oldPublisher: software.publisher,
+      newPublisher: null,
+      action: "deleted",
+      adminId: req.session.adminId,
+      adminEmail: req.session.adminEmail
+    });
+
+    // Delete the versions explicitly.
+    await client.query(
+      `DELETE FROM software_versions
+       WHERE software_id = $1`,
+      [id]
+    );
+
+    // Delete the software group.
+    const deleted = await client.query(
+      `DELETE FROM software
+       WHERE id = $1
+       RETURNING id`,
+      [id]
+    );
+
+    if (!deleted.rowCount) {
+      throw new Error("Software group deletion did not complete");
+    }
+
+    // Commit all audit events and deletions together.
+    await client.query("COMMIT");
+
     res.json({
-      success: true
+      success: true,
+      message: "Software group deleted and audited.",
+      deletedVersions: versions.length
     });
 
   } catch (error) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
     console.error(
-      "Software deletion failed:",
+      "Software group deletion failed:",
       error.message
     );
 
     res.status(500).json({
-      error: "Unable to delete software"
+      error: "Unable to delete software group"
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
+
 
 module.exports = router;

@@ -404,7 +404,98 @@ function renderAdminInventory() {
       );
     });
 
-    card.append(title, publisher, editGroupButton);
+    
+    // Delete Software Group button
+    const deleteGroupButton = makeElement(
+      "button",
+      "🗑️ Delete Software Group"
+    );
+
+    deleteGroupButton.type = "button";
+    deleteGroupButton.className = "admin-delete-button";
+
+    deleteGroupButton.addEventListener("click", async () => {
+      const versionCount = (software.versions || []).length;
+
+      const confirmed = window.confirm(
+        `PERMANENTLY DELETE SOFTWARE GROUP?\n\n` +
+        `Software: ${software.name}\n` +
+        `Publisher: ${software.publisher}\n` +
+        `Versions currently displayed: ${versionCount}\n\n` +
+        `WARNING: ALL versions in this group will be deleted, ` +
+        `including any hidden by filters.\n\n` +
+        `This action cannot be undone.\n` +
+        `Audit history will be preserved.`
+      );
+
+      if (!confirmed) return;
+
+      // Extra confirmation for deleting an entire group.
+      const typedName = window.prompt(
+        `To confirm, type the exact software name:\n${software.name}`
+      );
+
+      if (typedName !== software.name) {
+        if (typedName !== null) {
+          window.alert("Software name did not match. Deletion canceled.");
+        }
+        return;
+      }
+
+      deleteGroupButton.disabled = true;
+      editGroupButton.disabled = true;
+
+      adminMessage.textContent =
+        `Deleting software group ${software.name}...`;
+
+      try {
+        const response = await fetch(
+          `/api/software/${encodeURIComponent(software.id)}`,
+          {
+            method: "DELETE",
+            credentials: "same-origin"
+          }
+        );
+
+        if (response.status === 401) {
+          window.location.replace("/login.html");
+          return;
+        }
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error || "Unable to delete software group."
+          );
+        }
+
+        await loadAdminInventory();
+
+        adminMessage.textContent =
+          `${software.name} was deleted successfully. ` +
+          `${result.deletedVersions} version(s) removed. ` +
+          `Audit history preserved.`;
+
+      } catch (error) {
+        console.error("Software group deletion failed:", error);
+
+        adminMessage.textContent =
+          error.message || "Unable to delete software group.";
+
+      } finally {
+        deleteGroupButton.disabled = false;
+        editGroupButton.disabled = false;
+      }
+    });
+
+    card.append(
+      title,
+      publisher,
+      editGroupButton,
+      deleteGroupButton
+    );
+
 
     // Display each software version
     software.versions.forEach(version => {
