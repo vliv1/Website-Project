@@ -873,3 +873,107 @@ html.dark-mode #emptyMessage {
   background: #fee2e2;
   color: #991b1b;
 }
+
+
+/* SoftTrack V3 - Last Updated Panel */
+.sidebar-updates {
+  margin-top: auto;
+  padding: 16px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.sidebar-updates h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.update-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.update-item small {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+
+
+/* SoftTrack V3 Settings Button */
+.settings-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.settings-link:hover,
+.settings-link:focus-visible {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+
+
+/* =====================================
+   SoftTrack V3 - Settings Page Layout
+===================================== */
+
+
+/* SoftTrack V3 - Settings Page Layout */
+
+
+.settings-page {
+  position: relative;
+  margin-left: 0;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+
+
+/* Full-width Settings banner */
+.settings-header {
+  margin: 0;
+  padding: 36px 40px;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+/* Appearance settings card */
+.settings-panel {
+  margin: 24px 40px;
+}
+
+/* Mobile layout */
+@media (max-width: 768px) {
+  .settings-page {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .settings-header {
+    padding: 28px 20px;
+  }
+
+  .settings-panel {
+    margin: 20px;
+  }
+}

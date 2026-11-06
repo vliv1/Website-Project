@@ -4,24 +4,34 @@ const overlay = document.getElementById("sidebarOverlay");
 const toggle = document.getElementById("menuToggle");
 const navLinks = document.querySelectorAll(".nav-link");
 
+
 function closeMenu() {
+  if (!sidebar || !overlay || !toggle) return;
+
   sidebar.classList.remove("open");
   overlay.classList.remove("visible");
+
   toggle.setAttribute("aria-expanded", "false");
   toggle.setAttribute("aria-label", "Open navigation");
 }
 
-toggle.addEventListener("click", () => {
-  const isOpen = sidebar.classList.toggle("open");
-  overlay.classList.toggle("visible", isOpen);
-  toggle.setAttribute("aria-expanded", String(isOpen));
-  toggle.setAttribute(
-    "aria-label",
-    isOpen ? "Close navigation" : "Open navigation"
-  );
-});
 
-overlay.addEventListener("click", closeMenu);
+
+if (sidebar && overlay && toggle) {
+  toggle.addEventListener("click", () => {
+    const isOpen = sidebar.classList.toggle("open");
+
+    overlay.classList.toggle("visible", isOpen);
+    toggle.setAttribute("aria-expanded", String(isOpen));
+    toggle.setAttribute(
+      "aria-label",
+      isOpen ? "Close navigation" : "Open navigation"
+    );
+  });
+
+  overlay.addEventListener("click", closeMenu);
+}
+
 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeMenu();
@@ -39,12 +49,19 @@ navLinks.forEach(link => {
         .dispatchEvent(new Event("change"));
       document.getElementById("inventory")
         .scrollIntoView({ behavior: "smooth" });
-    } else if (page === "inventory") {
-      document.getElementById("statusFilter").value =
-        "All";
-      document.getElementById("statusFilter")
-        .dispatchEvent(new Event("change"));
-    }
+    
+} else if (page === "inventory") {
+  const statusFilter =
+    document.getElementById("statusFilter");
+
+  if (statusFilter) {
+    statusFilter.value = "All";
+    statusFilter.dispatchEvent(
+      new Event("change")
+    );
+  }
+}
+
 
     navLinks.forEach(item =>
       item.classList.toggle("active", item === link)
@@ -70,14 +87,28 @@ function applyTheme(theme) {
     isDark
   );
 
+  
+if (themeIcon) {
   themeIcon.textContent = isDark ? "☀️" : "🌙";
-  themeLabel.textContent = isDark ? "Light Mode" : "Dark Mode";
+}
 
+if (themeLabel) {
+  themeLabel.textContent =
+    isDark ? "Light Mode" : "Dark Mode";
+}
+
+if (themeToggle) {
   themeToggle.setAttribute(
     "aria-label",
     isDark ? "Switch to light mode" : "Switch to dark mode"
   );
-  themeToggle.setAttribute("aria-pressed", String(isDark));
+
+  themeToggle.setAttribute(
+    "aria-pressed",
+    String(isDark)
+  );
+}
+
 }
 
 let savedTheme = null;
@@ -98,17 +129,63 @@ applyTheme(
     : systemPrefersDark ? "dark" : "light"
 );
 
-themeToggle.addEventListener("click", () => {
-  const isDark = document.documentElement.classList
-    .contains("dark-mode");
 
-  const nextTheme = isDark ? "light" : "dark";
+if (themeToggle) {
+  themeToggle.addEventListener("click", () => {
+    const isDark = document.documentElement.classList
+      .contains("dark-mode");
 
-  applyTheme(nextTheme);
+    const nextTheme = isDark ? "light" : "dark";
+
+    applyTheme(nextTheme);
+
+    try {
+      localStorage.setItem(THEME_KEY, nextTheme);
+    } catch (error) {
+      console.warn("Could not save theme preference:", error);
+    }
+  });
+}
+
+
+
+const lightModeBtn = document.getElementById("lightModeBtn");
+const darkModeBtn = document.getElementById("darkModeBtn");
+
+function updateAppearanceButtons() {
+  const isDark = document.documentElement.classList.contains("dark-mode");
+
+  if (lightModeBtn) {
+    lightModeBtn.setAttribute("aria-pressed", String(!isDark));
+  }
+
+  if (darkModeBtn) {
+    darkModeBtn.setAttribute("aria-pressed", String(isDark));
+  }
+}
+
+function saveAppearanceTheme(theme) {
+  applyTheme(theme);
 
   try {
-    localStorage.setItem(THEME_KEY, nextTheme);
+    localStorage.setItem(THEME_KEY, theme);
   } catch (error) {
     console.warn("Could not save theme preference:", error);
   }
-});
+
+  updateAppearanceButtons();
+}
+
+if (lightModeBtn) {
+  lightModeBtn.addEventListener("click", () => {
+    saveAppearanceTheme("light");
+  });
+}
+
+if (darkModeBtn) {
+  darkModeBtn.addEventListener("click", () => {
+    saveAppearanceTheme("dark");
+  });
+}
+
+updateAppearanceButtons();

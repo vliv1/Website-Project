@@ -1,0 +1,121 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <title>SoftTrack | Settings</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+
+<!-- Mobile top bar -->
+<div class="mobile-bar">
+  <button
+    id="menuToggle"
+    class="menu-toggle"
+    type="button"
+    aria-label="Open navigation"
+    aria-expanded="false"
+    aria-controls="sidebar">☰</button>
+  <strong>SoftTrack</strong>
+</div>
+
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+<!-- Navigation sidebar -->
+<aside id="sidebar" class="sidebar">
+
+  <div class="brand">
+    <span class="brand-icon">◈</span>
+    <div>
+      <strong>SoftTrack</strong>
+      <small>Software Management</small>
+    </div>
+  </div>
+
+  <nav class="nav-links" aria-label="Main navigation">
+    <a href="/#dashboard" class="nav-link">
+      <span class="nav-icon">▦</span>
+      Dashboard
+    </a>
+
+    <a href="/#inventory" class="nav-link">
+      <span class="nav-icon">▣</span>
+      Software Inventory
+    </a>
+  </nav>
+
+  <!-- Last Updated Panel -->
+  <div class="sidebar-updates">
+    <h3>◷ LAST UPDATED</h3>
+
+    <div class="update-item">
+      <span>Software Inventory</span>
+      <small id="inventoryUpdated">—</small>
+    </div>
+
+    <div class="update-item">
+      <span>Security Watch</span>
+      <small id="securityUpdated">—</small>
+    </div>
+
+    <div class="update-item">
+      <span>Website Release</span>
+      <small id="releaseUpdated">—</small>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <span class="online-dot"></span>
+    System Online
+    <small>SoftTrack Version 2</small>
+  </div>
+
+  <!-- Settings -->
+  <a href="/settings.html"
+     class="nav-link settings-link active"
+     aria-current="page">
+    <span class="nav-icon" aria-hidden="true">⚙</span>
+    Settings
+  </a>
+
+</aside>
+
+
+
+  <main class="settings-page">
+    <header class="settings-header">
+      <span class="eyebrow">SOFTTRACK V3</span>
+      <h1>Settings</h1>
+      <p>Customize your SoftTrack experience.</p>
+    </header>
+
+    <section class="panel settings-panel">
+      <h2>Appearance</h2>
+      <p class="help-text">
+        Choose how SoftTrack looks on your device.
+      </p>
+
+      <div class="settings-options">
+        <button type="button" id="lightModeBtn">
+          ☀️ Light Mode
+        </button>
+
+        <button type="button" id="darkModeBtn">
+          🌙 Dark Mode
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+
+  <script src="/navigation.js"></script>
+</body>
+</html>
+
