@@ -357,19 +357,29 @@ body {
   padding-left: 260px;
 }
 
+
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   width: 260px;
-  background: #101d36;
+
+  /* SoftTrack V3 Ocean Blue Gradient */
+  background: linear-gradient(
+    165deg,
+    #123A78 0%,
+    #1759AD 55%,
+    #1688E8 100%
+  );
+
   color: white;
   display: flex;
   flex-direction: column;
   padding: 28px 15px;
   z-index: 1000;
 }
+
 
 .brand {
   display: flex;
