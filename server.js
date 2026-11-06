@@ -32,7 +32,18 @@ if (production) {
 // Temporary: your V2 index.html contains inline scripts.
 // We will move them into a separate file before production.
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"]
+    }
+  }
 }));
 
 app.use(express.json({ limit: "10kb" }));
@@ -64,8 +75,16 @@ app.use(session({
 
 // Require same-origin requests for state-changing endpoints.
 // This protects these JSON endpoints from cross-site requests.
+
 function requireSameOrigin(req, res, next) {
   const origin = req.get("origin");
+  const allowedOrigin = process.env.APP_ORIGIN;
+
+  if (!allowedOrigin) {
+    return res.status(500).json({
+      error: "Application origin is not configured"
+    });
+  }
 
   if (!origin) {
     return res.status(403).json({
@@ -75,11 +94,13 @@ function requireSameOrigin(req, res, next) {
 
   try {
     const source = new URL(origin);
-    const destination = new URL(
-      `${req.protocol}://${req.get("host")}`
-    );
+    const destination = new URL(allowedOrigin);
 
-    if (source.origin !== destination.origin) {
+    if (
+      !["http:", "https:"].includes(source.protocol) ||
+      !["http:", "https:"].includes(destination.protocol) ||
+      source.origin !== destination.origin
+    ) {
       return res.status(403).json({
         error: "Cross-origin request rejected"
       });
@@ -92,6 +113,7 @@ function requireSameOrigin(req, res, next) {
 
   next();
 }
+
 
 
 
@@ -229,6 +251,10 @@ app.get(
     });
   }
 );
+
+
+
+
 
 // Log out and invalidate the session
 app.post(
