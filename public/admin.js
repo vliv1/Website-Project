@@ -314,7 +314,7 @@ function createVersionEditor(version) {
 
 
 
-function renderAdminInventory() {
+function renderAdminInventory() { 
   adminSoftwareList.replaceChildren();
 
   const query = adminSearch.value.trim().toLowerCase();
@@ -926,6 +926,7 @@ function formatAuditAction(action) {
   return labels[action] || action;
 }
 
+
 function renderAuditHistory(events) {
   auditHistoryList.replaceChildren();
 
@@ -942,14 +943,34 @@ function renderAuditHistory(events) {
     const card = document.createElement("article");
     card.className = "admin-audit-card";
 
+    // Identify the type of deletion.
+    const isGroupDeletion =
+      event.action === "deleted" &&
+      event.software_version_id == null &&
+      !event.version;
+
+    const isVersionDeletion =
+      event.action === "deleted" &&
+      !isGroupDeletion;
+
+    // Choose the correct audit title.
     const title = makeElement(
       "h3",
-      formatAuditAction(event.action)
+      isGroupDeletion
+        ? "Software Group Deleted"
+        : isVersionDeletion
+          ? "Software Version Deleted"
+          : formatAuditAction(event.action)
     );
+
+    // Avoid showing an empty version label.
+    const softwareDescription = event.version
+      ? `${event.software_name} · Version ${event.version}`
+      : event.software_name;
 
     const software = makeElement(
       "p",
-      `${event.software_name} · Version ${event.version}`
+      softwareDescription
     );
 
     const publisher = makeElement(
@@ -959,7 +980,7 @@ function renderAuditHistory(events) {
 
     const administrator = makeElement(
       "p",
-      `Administrator: ${event.admin_email}`
+      `Administrator: ${event.admin_email || "Unknown"}`
     );
 
     const date = new Date(event.created_at);
@@ -979,10 +1000,10 @@ function renderAuditHistory(events) {
       publisher
     );
 
-    // Show creation and approval status changes.
+    // Software creation and approval status changes.
     if (
-      event.action === "status_changed" ||
-      event.action === "created"
+      event.action === "created" ||
+      event.action === "status_changed"
     ) {
       const status = makeElement(
         "p",
@@ -994,51 +1015,100 @@ function renderAuditHistory(events) {
       card.appendChild(status);
     }
 
-    // Show previous and new version numbers.
+    // Software version number changes.
     if (event.action === "version_updated") {
       const oldVersion =
         event.old_version || "Unknown";
 
       const newVersion =
-        event.new_version || event.version;
+        event.new_version || event.version || "Unknown";
 
-      const versionChange = makeElement(
-        "p",
-        `Version changed: ${oldVersion} → ${newVersion}`
+      card.appendChild(
+        makeElement(
+          "p",
+          `Version changed: ${oldVersion} → ${newVersion}`
+        )
+      );
+    }
+
+    // Individual version deletions.
+    if (isVersionDeletion) {
+      const previousStatus =
+        event.deleted_status ||
+        event.old_status ||
+        "Unknown";
+
+      card.appendChild(
+        makeElement(
+          "p",
+          `Approval status before deletion: ${previousStatus}`
+        )
+      );
+    }
+
+    // Entire software group deletions.
+    if (isGroupDeletion) {
+      card.appendChild(
+        makeElement(
+          "p",
+          "This software group was permanently deleted."
+        )
       );
 
-      card.appendChild(versionChange);
+      card.appendChild(
+        makeElement(
+          "p",
+          "Its version deletions are recorded separately in Audit History."
+        )
+      );
     }
 
-
-    // Show changes to software group names and publishers.
+    // Software group name and publisher changes.
     if (event.action === "software_updated") {
-      if (event.old_software_name !== event.new_software_name) {
+      if (
+        event.old_software_name !==
+        event.new_software_name
+      ) {
         card.appendChild(
           makeElement(
             "p",
-            `Software name changed: ${event.old_software_name} → ${event.new_software_name}`
+            `Software name changed: ${
+              event.old_software_name || "Unknown"
+            } → ${
+              event.new_software_name || "Unknown"
+            }`
           )
         );
       }
 
-      if (event.old_publisher !== event.new_publisher) {
+      if (
+        event.old_publisher !==
+        event.new_publisher
+      ) {
         card.appendChild(
           makeElement(
             "p",
-            `Publisher changed: ${event.old_publisher} → ${event.new_publisher}`
+            `Publisher changed: ${
+              event.old_publisher || "Unknown"
+            } → ${
+              event.new_publisher || "Unknown"
+            }`
           )
         );
       }
     }
 
+    card.append(
+      administrator,
+      timestamp
+    );
 
-    card.append(administrator, timestamp);
     auditHistoryList.appendChild(card);
   });
 }
 
-async function loadAuditHistory() {
+
+async function loadAuditHistory() { 
   auditMessage.textContent =
     "Loading audit history...";
 

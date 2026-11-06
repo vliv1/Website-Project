@@ -192,6 +192,7 @@ router.get("/audit", async (req, res) => {
      version,
      old_status,
      new_status,
+     deleted_status,
      old_version,
      new_version,
      old_software_name,
