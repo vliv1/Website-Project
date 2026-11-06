@@ -816,3 +816,31 @@ html {
 }
 
 
+
+/* Delete Version Button */
+.admin-delete-button {
+  padding: 8px 14px;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  background: transparent;
+  color: #dc3545;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.admin-delete-button:hover {
+  background: #dc3545;
+  color: #ffffff;
+}
+
+.admin-delete-button:focus-visible {
+  outline: 3px solid #dc3545;
+  outline-offset: 3px;
+}
+
+.admin-delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

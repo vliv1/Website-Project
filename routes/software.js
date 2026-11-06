@@ -65,6 +65,7 @@ function requireSameOrigin(req, res, next) {
 
 // Save an audit event inside the current database transaction.
 
+
 async function recordApprovalEvent(client, {
   softwareVersionId = null,
   softwareName,
@@ -78,6 +79,7 @@ async function recordApprovalEvent(client, {
   newSoftwareName = null,
   oldPublisher = null,
   newPublisher = null,
+  deletedStatus = null,
   action,
   adminId,
   adminEmail
@@ -96,14 +98,14 @@ async function recordApprovalEvent(client, {
       new_software_name,
       old_publisher,
       new_publisher,
+      deleted_status,
       action,
       admin_id,
       admin_email
     )
     VALUES (
-      $1, $2, $3, $4, $5,
-      $6, $7, $8, $9, $10,
-      $11, $12, $13, $14, $15
+      $1, $2, $3, $4, $5, $6, $7, $8,
+      $9, $10, $11, $12, $13, $14, $15, $16
     )`,
     [
       softwareVersionId,
@@ -118,6 +120,7 @@ async function recordApprovalEvent(client, {
       newSoftwareName,
       oldPublisher,
       newPublisher,
+      deletedStatus,
       action,
       adminId,
       adminEmail
@@ -624,40 +627,94 @@ if (versionChanged) {
 
 
 // ADMIN: Delete a software version.
+
 router.delete("/versions/:id", async (req, res) => {
-  if (!isUUID(req.params.id)) {
+  const { id } = req.params;
+
+  if (!isUUID(id)) {
     return res.status(400).json({
       error: "Invalid version ID"
     });
   }
 
+  let client;
+
   try {
-    const result = await pool.query(
-      `DELETE FROM software_versions
-       WHERE id = $1
-       RETURNING id`,
-      [req.params.id]
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    // Read the version and its software details.
+    const existing = await client.query(
+      `SELECT
+         v.id,
+         v.version,
+         v.status,
+         s.name AS software_name,
+         s.publisher
+       FROM software_versions v
+       JOIN software s ON s.id = v.software_id
+       WHERE v.id = $1
+       FOR UPDATE OF v`,
+      [id]
     );
 
-    if (!result.rowCount) {
+    if (!existing.rowCount) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         error: "Version not found"
       });
     }
 
+    const previous = existing.rows[0];
+
+    // Save the audit event before deleting.
+    await recordApprovalEvent(client, {
+      softwareVersionId: previous.id,
+      softwareName: previous.software_name,
+      publisher: previous.publisher,
+      version: previous.version,
+      oldStatus: previous.status,
+      newStatus: null,
+      deletedStatus: previous.status,
+      action: "deleted",
+      adminId: req.session.adminId,
+      adminEmail: req.session.adminEmail
+    });
+
+    // Delete the selected version only.
+    await client.query(
+      `DELETE FROM software_versions
+       WHERE id = $1`,
+      [id]
+    );
+
+    // Commit the audit record and deletion together.
+    await client.query("COMMIT");
+
     res.json({
-      success: true
+      success: true,
+      message: "Software version deleted and audited."
     });
 
   } catch (error) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
     console.error(
       "Version deletion failed:",
       error.message
     );
 
     res.status(500).json({
-      error: "Unable to delete version"
+      error: "Unable to delete software version"
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 

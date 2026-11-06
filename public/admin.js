@@ -313,6 +313,7 @@ function createVersionEditor(version) {
 }
 
 
+
 function renderAdminInventory() {
   adminSoftwareList.replaceChildren();
 
@@ -375,77 +376,162 @@ function renderAdminInventory() {
       "admin-publisher"
     );
 
-    
-const editGroupButton = makeElement(
-  "button",
-  "✏️ Edit Software Group"
-);
-
-editGroupButton.type = "button";
-editGroupButton.className = "admin-edit-button";
-
-editGroupButton.addEventListener("click", () => {
-  const existingEditor = card.querySelector(
-    ".admin-group-editor"
-  );
-
-  if (existingEditor) {
-    existingEditor.remove();
-    return;
-  }
-
-  const editor = createSoftwareGroupEditor(software);
-  editor.classList.add("admin-group-editor");
-
-  card.insertBefore(editor, card.firstChild.nextSibling);
-});
-
-card.append(title, publisher, editGroupButton);
-
-
-    
-software.versions.forEach(version => {
-  const row = document.createElement("div");
-  row.className = "admin-version-row";
-
-  const number = makeElement(
-    "span",
-    `Version ${version.number}`
-  );
-
-  const status = makeElement(
-    "span",
-    version.status,
-    `admin-status status-${version.status.toLowerCase()}`
-  );
-
-  const editButton = makeElement("button", "✏️ Edit");
-  editButton.type = "button";
-  editButton.className = "admin-edit-button";
-
-  editButton.addEventListener("click", () => {
-    // Show the editor below this version.
-    const existingEditor = row.querySelector(
-      ".admin-version-editor"
+    // Edit Software Group button
+    const editGroupButton = makeElement(
+      "button",
+      "✏️ Edit Software Group"
     );
 
-    if (existingEditor) {
-      existingEditor.remove();
-      return;
-    }
+    editGroupButton.type = "button";
+    editGroupButton.className = "admin-edit-button";
 
-    const editor = createVersionEditor(version);
-    row.appendChild(editor);
-  });
+    editGroupButton.addEventListener("click", () => {
+      const existingEditor = card.querySelector(
+        ".admin-group-editor"
+      );
 
-  row.append(number, status, editButton);
-  card.appendChild(row);
-});
+      if (existingEditor) {
+        existingEditor.remove();
+        return;
+      }
 
+      const editor = createSoftwareGroupEditor(software);
+      editor.classList.add("admin-group-editor");
+
+      card.insertBefore(
+        editor,
+        card.firstChild.nextSibling
+      );
+    });
+
+    card.append(title, publisher, editGroupButton);
+
+    // Display each software version
+    software.versions.forEach(version => {
+      const row = document.createElement("div");
+      row.className = "admin-version-row";
+
+      const number = makeElement(
+        "span",
+        `Version ${version.number}`
+      );
+
+      const status = makeElement(
+        "span",
+        version.status,
+        `admin-status status-${version.status.toLowerCase()}`
+      );
+
+      // Edit Version button
+      const editButton = makeElement(
+        "button",
+        "✏️ Edit"
+      );
+
+      editButton.type = "button";
+      editButton.className = "admin-edit-button";
+
+      editButton.addEventListener("click", () => {
+        const existingEditor = row.querySelector(
+          ".admin-version-editor"
+        );
+
+        if (existingEditor) {
+          existingEditor.remove();
+          return;
+        }
+
+        const editor = createVersionEditor(version);
+        row.appendChild(editor);
+      });
+
+      // NEW: Delete Version button
+      const deleteButton = makeElement(
+        "button",
+        "🗑️ Delete"
+      );
+
+      deleteButton.type = "button";
+      deleteButton.className = "admin-delete-button";
+
+      deleteButton.addEventListener("click", async () => {
+        const confirmed = window.confirm(
+          `Are you sure you want to permanently delete\n\n` +
+          `${software.name}\n` +
+          `Version ${version.number}\n` +
+          `Status: ${version.status}\n\n` +
+          `This action cannot be undone.\n` +
+          `An audit record will be preserved.`
+        );
+
+        if (!confirmed) {
+          return;
+        }
+
+        deleteButton.disabled = true;
+        editButton.disabled = true;
+
+        adminMessage.textContent =
+          `Deleting ${software.name} version ${version.number}...`;
+
+        try {
+          const response = await fetch(
+            `/api/software/versions/${encodeURIComponent(version.id)}`,
+            {
+              method: "DELETE",
+              credentials: "same-origin"
+            }
+          );
+
+          if (response.status === 401) {
+            window.location.replace("/login.html");
+            return;
+          }
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              result.error || "Unable to delete software version."
+            );
+          }
+
+          await loadAdminInventory();
+
+          adminMessage.textContent =
+            `${software.name} version ${version.number} ` +
+            `was deleted successfully. Audit history preserved.`;
+
+        } catch (error) {
+          console.error(
+            "Software version deletion failed:",
+            error
+          );
+
+          adminMessage.textContent =
+            error.message || "Unable to delete software version.";
+
+        } finally {
+          deleteButton.disabled = false;
+          editButton.disabled = false;
+        }
+      });
+
+      // Show both action buttons
+      row.append(
+        number,
+        status,
+        editButton,
+        deleteButton
+      );
+
+      card.appendChild(row);
+    });
 
     adminSoftwareList.appendChild(card);
   });
 }
+
 
 async function loadAdminInventory() {
   adminMessage.textContent = "Loading software inventory...";
