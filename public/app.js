@@ -39,8 +39,13 @@ function updateDashboard() {
 }
 
 function getFilteredInventory() {
-  const query = searchInput.value.trim().toLowerCase();
-  const selectedStatus = statusFilter.value;
+  const query = searchInput
+    ? searchInput.value.trim().toLowerCase()
+    : "";
+
+  const selectedStatus = statusFilter
+    ? statusFilter.value
+    : "All";
 
   return inventory
     .map(software => {
@@ -71,7 +76,7 @@ function getFilteredInventory() {
         software.publisher.toLowerCase().includes(query);
 
       return hasVersions ||
-        (statusFilter.value === "All" && matchesGroup);
+        (selectedStatus === "All" && matchesGroup);
     });
 }
 
@@ -85,6 +90,10 @@ function createTextElement(tag, text, className = "") {
 }
 
 function renderInventory() {
+  // The Dashboard has no Inventory section.
+  // Skip rendering when those elements are absent.
+  if (!softwareList || !emptyMessage) return;
+
   softwareList.replaceChildren();
 
   const filtered = getFilteredInventory();
@@ -235,11 +244,25 @@ async function loadInventory() {
   }
 
   updateDashboard();
-  renderInventory();
+
+  // Render software cards only on the Inventory page.
+  if (softwareList && emptyMessage) {
+    renderInventory();
+  }
 }
 
-searchInput.addEventListener("input", renderInventory);
-statusFilter.addEventListener("change", renderInventory);
-exportBtn.addEventListener("click", exportCsv);
+// Register Inventory controls only when they exist.
+if (searchInput) {
+  searchInput.addEventListener("input", renderInventory);
+}
 
+if (statusFilter) {
+  statusFilter.addEventListener("change", renderInventory);
+}
+
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportCsv);
+}
+
+// Load the read-only software data for either page.
 loadInventory();

@@ -189,3 +189,36 @@ if (darkModeBtn) {
 }
 
 updateAppearanceButtons();
+
+
+
+
+function updateActiveNavigation() {
+  const currentSection = window.location.hash;
+
+  if (currentSection !== "#dashboard" &&
+      currentSection !== "#inventory") {
+    return;
+  }
+
+  const links = document.querySelectorAll(
+    '.nav-links .nav-link[data-page]'
+  );
+
+  links.forEach(link => {
+    const isActive =
+      link.dataset.page === currentSection.substring(1);
+
+    link.classList.toggle("active", isActive);
+
+    if (isActive) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
+window.addEventListener("hashchange", updateActiveNavigation);
+
+updateActiveNavigation();

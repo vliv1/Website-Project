@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoftTrack | Software Inventory</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <!-- Mobile navigation -->
+  <div class="mobile-bar">
+    <button id="menuToggle" class="menu-toggle" type="button"
+            aria-label="Open navigation" aria-expanded="false"
+            aria-controls="sidebar">☰</button>
+    <strong>SoftTrack</strong>
+  </div>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <!-- Shared SoftTrack sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <div>
+        <strong>SoftTrack</strong>
+        <small>Software Management</small>
+      </div>
+    </div>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="/#dashboard" class="nav-link">
+        <span class="nav-icon" aria-hidden="true">▦</span>
+        Dashboard
+      </a>
+      <a href="/inventory.html" class="nav-link active" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">▣</span>
+        Software Inventory
+      </a>
+    </nav>
+
+    <div class="sidebar-updates">
+      <h3>◷ LAST UPDATED</h3>
+      <div class="update-item">
+        <span>Software Inventory</span>
+        <small id="inventoryUpdated">—</small>
+      </div>
+      <div class="update-item">
+        <span>Security Watch</span>
+        <small id="securityUpdated">—</small>
+      </div>
+      <div class="update-item">
+        <span>Website Release</span>
+        <small id="releaseUpdated">—</small>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="online-dot"></span>
+      System Online
+      <small>SoftTrack Version 2</small>
+    </div>
+
+    <a href="/settings.html" class="nav-link settings-link">
+      <span class="nav-icon" aria-hidden="true">⚙</span>
+      Settings
+    </a>
+  </aside>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">SOFTWARE MANAGEMENT</span>
+        <h1>Software Inventory</h1>
+        <p>Browse software titles, versions, and approval statuses.</p>
+      </div>
+      <div class="topbar-actions">
+        <span class="topbar-badge">● Software Inventory</span>
+        <button id="themeToggle" class="theme-toggle" type="button"
+                aria-label="Switch to dark mode" aria-pressed="false">
+          <span id="themeIcon" aria-hidden="true">🌙</span>
+          <span id="themeLabel">Dark Mode</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="inventory" class="panel">
+        <div class="panel-heading inventory-heading">
+          <span class="panel-icon" aria-hidden="true">▣</span>
+          <div>
+            <h2>Software Inventory</h2>
+            <p class="help-text">Search and filter your read-only software approval records.</p>
+          </div>
+          <button id="exportBtn" type="button" class="export-btn">Export CSV</button>
+        </div>
+
+        <div class="filters">
+          <input id="search" type="search"
+                 aria-label="Search software, publisher, or version"
+                 placeholder="Search software, publisher or version">
+          <select id="statusFilter" aria-label="Filter by approval status">
+            <option value="All">All Statuses</option>
+            <option value="Approved">Approved</option>
+            <option value="Pending">Pending Approval</option>
+            <option value="Denied">Denied</option>
+          </select>
+        </div>
+
+        <div id="softwareList"></div>
+        <p id="emptyMessage" hidden>No software records match your filters.</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="/navigation.js"></script>
+</body>
+</html>
