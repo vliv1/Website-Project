@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +9,7 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
+
   <!-- Mobile navigation -->
   <div class="mobile-bar">
     <button id="menuToggle" class="menu-toggle" type="button"
@@ -15,6 +17,7 @@
             aria-controls="sidebar">☰</button>
     <strong>SoftTrack</strong>
   </div>
+
   <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
   <!-- Shared SoftTrack sidebar -->
@@ -32,22 +35,28 @@
         <span class="nav-icon" aria-hidden="true">▦</span>
         Dashboard
       </a>
-      <a href="/inventory.html" class="nav-link active" aria-current="page">
+
+      <a href="/inventory.html" class="nav-link active"
+         aria-current="page">
         <span class="nav-icon" aria-hidden="true">▣</span>
         Software Inventory
       </a>
     </nav>
 
+    <!-- Last Updated Panel -->
     <div class="sidebar-updates">
       <h3>◷ LAST UPDATED</h3>
+
       <div class="update-item">
         <span>Software Inventory</span>
         <small id="inventoryUpdated">—</small>
       </div>
+
       <div class="update-item">
         <span>Security Watch</span>
         <small id="securityUpdated">—</small>
       </div>
+
       <div class="update-item">
         <span>Website Release</span>
         <small id="releaseUpdated">—</small>
@@ -60,12 +69,14 @@
       <small>SoftTrack Version 2</small>
     </div>
 
+    <!-- Settings -->
     <a href="/settings.html" class="nav-link settings-link">
       <span class="nav-icon" aria-hidden="true">⚙</span>
       Settings
     </a>
   </aside>
 
+  <!-- Main content -->
   <div class="app-shell">
     <header class="topbar">
       <div>
@@ -73,32 +84,43 @@
         <h1>Software Inventory</h1>
         <p>Browse software titles, versions, and approval statuses.</p>
       </div>
+
       <div class="topbar-actions">
         <span class="topbar-badge">● Software Inventory</span>
-        <button id="themeToggle" class="theme-toggle" type="button"
-                aria-label="Switch to dark mode" aria-pressed="false">
-          <span id="themeIcon" aria-hidden="true">🌙</span>
-          <span id="themeLabel">Dark Mode</span>
-        </button>
       </div>
     </header>
 
     <main class="container">
       <section id="inventory" class="panel">
+
         <div class="panel-heading inventory-heading">
           <span class="panel-icon" aria-hidden="true">▣</span>
+
           <div>
             <h2>Software Inventory</h2>
-            <p class="help-text">Search and filter your read-only software approval records.</p>
+            <p class="help-text">
+              Search and filter your read-only software approval records.
+            </p>
           </div>
-          <button id="exportBtn" type="button" class="export-btn">Export CSV</button>
+
+          <button id="exportBtn" type="button" class="export-btn">
+            Export CSV
+          </button>
         </div>
 
+        <!-- Search and status filters -->
         <div class="filters">
-          <input id="search" type="search"
-                 aria-label="Search software, publisher, or version"
-                 placeholder="Search software, publisher or version">
-          <select id="statusFilter" aria-label="Filter by approval status">
+          <input
+            id="search"
+            type="search"
+            aria-label="Search software, publisher, or version"
+            placeholder="Search software, publisher or version"
+          >
+
+          <select
+            id="statusFilter"
+            aria-label="Filter by approval status"
+          >
             <option value="All">All Statuses</option>
             <option value="Approved">Approved</option>
             <option value="Pending">Pending Approval</option>
@@ -106,12 +128,19 @@
           </select>
         </div>
 
+        <!-- Software records rendered by app.js -->
         <div id="softwareList"></div>
-        <p id="emptyMessage" hidden>No software records match your filters.</p>
+
+        <p id="emptyMessage" hidden>
+          No software records match your filters.
+        </p>
+
       </section>
     </main>
   </div>
 
+  <!-- Shared navigation and theme functionality -->
   <script src="/navigation.js"></script>
+
 </body>
 </html>

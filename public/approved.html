@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoftTrack | Approved Versions</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .detail-toolbar { margin: 0 0 20px; }
+    .back-link { display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:#1759ad;color:#fff;text-decoration:none;font-weight:600; }
+    .back-link:hover,.back-link:focus-visible { background:#123a78; }
+    .detail-list { display:grid;gap:12px; }
+    .detail-record { border:1px solid rgba(128,128,128,.25);border-radius:12px;padding:16px;background:rgba(128,128,128,.05); }
+    .detail-record h3 { margin:0 0 8px; }
+    .detail-record p { margin:4px 0; }
+  </style>
+</head>
+<body>
+  <!-- Mobile top bar -->
+  <div class="mobile-bar">
+    <button id="menuToggle" class="menu-toggle"
+            aria-label="Open navigation"
+            aria-expanded="false"
+            aria-controls="sidebar">☰</button>
+    <strong>SoftTrack</strong>
+  </div>
+
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <!-- Navigation sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <div>
+        <strong>SoftTrack</strong>
+        <small>Software Management</small>
+      </div>
+    </div>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="#dashboard" class="nav-link active"
+         data-page="dashboard">
+        <span class="nav-icon">▦</span>
+        Dashboard
+      </a>
+
+      <a href="/inventory.html" class="nav-link">
+        <span class="nav-icon">▣</span>
+        Software Inventory
+      </a>
+
+  
+
+    </nav>
+
+
+<!-- Last Updated Panel -->
+<div class="sidebar-updates">
+  <h3>◷ LAST UPDATED</h3>
+
+  <div class="update-item">
+    <span>Software Inventory</span>
+    <small id="inventoryUpdated">—</small>
+  </div>
+
+  <div class="update-item">
+    <span>Security Watch</span>
+    <small id="securityUpdated">—</small>
+  </div>
+
+  <div class="update-item">
+    <span>Website Release</span>
+    <small id="releaseUpdated">—</small>
+  </div>
+</div>
+
+
+    <div class="sidebar-footer">
+      <span class="online-dot"></span>
+      System Online
+      <small>SoftTrack Version 2</small>
+    </div>
+
+<!-- SoftTrack V3 Settings -->
+<a href="/settings.html" class="nav-link settings-link">
+  <span class="nav-icon" aria-hidden="true">⚙</span>
+  Settings
+</a>
+
+  </aside>
+
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">SOFTWARE MANAGEMENT</span>
+        <h1>Approved Versions</h1>
+        <p>Software versions marked Approved.</p>
+      </div>
+    </header>
+    <main class="container">
+      <div class="detail-toolbar"><a class="back-link" href="/">← Back to Dashboard</a></div>
+      <section class="panel" aria-labelledby="detailHeading">
+        <div class="panel-heading"><div>
+          <h2 id="detailHeading">Approved Versions</h2>
+          <p class="help-text" id="detailCount">Loading software records…</p>
+        </div></div>
+        <div id="detailList" class="detail-list" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+  <script src="/navigation.js"></script>
+  <script>
+    "use strict";
+    const pageType = 'Approved';
+    const list = document.getElementById("detailList");
+    const count = document.getElementById("detailCount");
+    function addText(parent, tag, value) {
+      const el = document.createElement(tag);
+      el.textContent = String(value ?? "");
+      parent.appendChild(el);
+    }
+    async function loadDetails() {
+      try {
+        const response = await fetch("/api/software", {cache: "no-store"});
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const software = await response.json();
+        if (!Array.isArray(software)) throw new Error("Unexpected response format");
+        const records = [];
+        for (const item of software) {
+          if (pageType === "titles") {
+            records.push({name:item.name, publisher:item.publisher, versions:(item.versions || []).length});
+          } else {
+            for (const version of (item.versions || [])) {
+              if (version.status === pageType) {
+                records.push({name:item.name, publisher:item.publisher, number:version.number, status:version.status});
+              }
+            }
+          }
+        }
+        count.textContent = records.length + (pageType === "titles" ? " software title(s)" : " software version(s)");
+        list.replaceChildren();
+        if (!records.length) {
+          addText(list, "p", "No matching software records yet.");
+          return;
+        }
+        for (const record of records) {
+          const card = document.createElement("article");
+          card.className = "detail-record";
+          addText(card, "h3", record.name);
+          addText(card, "p", "Publisher: " + (record.publisher || "—"));
+          if (pageType === "titles") {
+            addText(card, "p", "Versions: " + record.versions);
+          } else {
+            addText(card, "p", "Version: " + (record.number ?? "—"));
+            addText(card, "p", "Status: " + record.status);
+          }
+          list.appendChild(card);
+        }
+      } catch (error) {
+        console.error("Unable to load detail page:", error);
+        count.textContent = "Unable to load software records.";
+        list.replaceChildren();
+        addText(list, "p", "Please refresh the page to try again.");
+      }
+    }
+    loadDetails();
+  </script>
+</body>
+</html>

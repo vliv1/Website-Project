@@ -96,37 +96,29 @@
         <div class="topbar-actions">
         <span class="topbar-badge">● Local Inventory</span>
 
-        <button
-            id="themeToggle"
-            class="theme-toggle"
-            type="button"
-            aria-label="Switch to dark mode"
-            aria-pressed="false">
-            <span id="themeIcon" aria-hidden="true">🌙</span>
-            <span id="themeLabel">Dark Mode</span>
-        </button>
+
         </div>
 
     </header>
 
     <main class="container">
       <section id="dashboard" class="dashboard">
-        <div class="card">
+        <a href="/software-titles.html" class="card" aria-label="View software titles" style="display:block;text-decoration:none;color:inherit;cursor:pointer;">
           <h2 id="softwareCount">0</h2>
           <p>Software Titles</p>
-        </div>
-        <div class="card approved">
+        </a>
+        <a href="/approved.html" class="card approved" aria-label="View approved versions" style="display:block;text-decoration:none;color:inherit;cursor:pointer;">
           <h2 id="approvedCount">0</h2>
           <p>Approved Versions</p>
-        </div>
-        <div class="card pending">
+        </a>
+        <a href="/pending.html" class="card pending" aria-label="View pending reviews" style="display:block;text-decoration:none;color:inherit;cursor:pointer;">
           <h2 id="pendingCount">0</h2>
           <p>Pending Reviews</p>
-        </div>
-        <div class="card denied">
+        </a>
+        <a href="/denied.html" class="card denied" aria-label="View denied versions" style="display:block;text-decoration:none;color:inherit;cursor:pointer;">
           <h2 id="deniedCount">0</h2>
           <p>Denied Versions</p>
-        </div>
+        </a>
       </section>
 
       <!-- Approval Status Chart: live version status breakdown -->
