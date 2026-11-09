@@ -133,10 +133,26 @@
           Loading approval status chart…
         </div>
       </section>
+      <section class="panel" aria-labelledby="securityWatchTitle" style="margin-top:24px">
+        <div class="panel-heading"><div><h2 id="securityWatchTitle">🛡️ CVE Security Watch</h2>
+        <p class="help-text">Potential CVE candidates for manual review — not confirmed affected versions.</p></div></div>
+        <div id="cveScanStatus" role="status">Security Watch has not loaded yet.</div>
+        <div class="dashboard" style="margin:16px 0">
+          <div class="card"><h2 id="cveCritical">—</h2><p>Critical candidates</p></div>
+          <div class="card"><h2 id="cveHigh">—</h2><p>High candidates</p></div>
+          <div class="card"><h2 id="cveMedium">—</h2><p>Medium candidates</p></div>
+          <div class="card"><h2 id="cveLow">—</h2><p>Low candidates</p></div>
+        </div>
+        <label for="cveSearch">Search potential CVEs</label>
+        <input id="cveSearch" type="search" placeholder="Search CVE ID, product, or description" style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;border:1px solid #888;border-radius:8px;background:transparent;color:inherit">
+        <div id="cveResults" aria-live="polite"></div>
+        <p class="help-text">Counts reflect only returned keyword-search candidates. No result is proof of an affected installation, and zero results does not mean safe.</p>
+      </section>
     </main>
   </div>
 
   <script src="/navigation.js"></script>
+  <script src="/security-watch.js" defer></script>
 
 </body>
 </html>

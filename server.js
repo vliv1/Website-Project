@@ -10,6 +10,7 @@ const { rateLimit } = require("express-rate-limit");
 const argon2 = require("argon2");
 const pool = require("./db");
 const softwareRoutes = require("./routes/software");
+const securityWatchRoutes = require("./routes/security-watch");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -293,6 +294,7 @@ app.get(
 );
 
 app.use("/api/software", softwareRoutes);
+app.use("/api/security-watch", securityWatchRoutes);
 
 // Keep your existing V2 public website working.
 app.use(express.static(

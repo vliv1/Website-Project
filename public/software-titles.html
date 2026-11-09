@@ -9,6 +9,9 @@
     .detail-toolbar { margin: 0 0 20px; }
     .back-link { display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:#1759ad;color:#fff;text-decoration:none;font-weight:600; }
     .back-link:hover,.back-link:focus-visible { background:#123a78; }
+    .detail-search { width:100%;box-sizing:border-box;margin:0 0 10px;padding:12px 14px;border:1px solid rgba(128,128,128,.4);border-radius:10px;background:var(--card-bg,transparent);color:inherit;font:inherit; }
+    .detail-search:focus-visible { outline:2px solid #1688e8;outline-offset:2px; }
+    .search-help { margin:0 0 16px;font-size:.9rem;opacity:.75; }
     .detail-list { display:grid;gap:12px; }
     .detail-record { border:1px solid rgba(128,128,128,.25);border-radius:12px;padding:16px;background:rgba(128,128,128,.05); }
     .detail-record h3 { margin:0 0 8px; }
@@ -105,6 +108,9 @@
           <h2 id="detailHeading">Software Titles</h2>
           <p class="help-text" id="detailCount">Loading software records…</p>
         </div></div>
+        <label for="detailSearch" style="display:block;font-weight:600;margin-bottom:8px;">Search records</label>
+        <input id="detailSearch" class="detail-search" type="search" autocomplete="off" placeholder="Search software, publisher, or version…" aria-describedby="searchHelp">
+        <p id="searchHelp" class="search-help">Results update automatically as you type.</p>
         <div id="detailList" class="detail-list" aria-live="polite"></div>
       </section>
     </main>
@@ -112,58 +118,83 @@
   <script src="/navigation.js"></script>
   <script>
     "use strict";
+    "use strict";
     const pageType = 'titles';
     const list = document.getElementById("detailList");
     const count = document.getElementById("detailCount");
+    const search = document.getElementById("detailSearch");
+    let allRecords = [];
+    let loadFailed = false;
+
     function addText(parent, tag, value) {
       const el = document.createElement(tag);
       el.textContent = String(value ?? "");
       parent.appendChild(el);
     }
+
+    function renderDetails() {
+      if (loadFailed) return;
+      const query = search.value.trim().toLocaleLowerCase();
+      const matches = allRecords.filter(record => {
+        const searchable = [record.name, record.publisher,
+          pageType === "titles" ? record.versions : record.number,
+          pageType === "titles" ? "" : record.status]
+          .map(value => String(value ?? "").toLocaleLowerCase()).join(" ");
+        return searchable.includes(query);
+      });
+      const unit = pageType === "titles" ? "software title(s)" : "software version(s)";
+      count.textContent = query
+        ? `${matches.length} of ${allRecords.length} ${unit} matching your search`
+        : `${allRecords.length} ${unit}`;
+      list.replaceChildren();
+      if (!matches.length) {
+        addText(list, "p", query ? "No records match your search." : "No matching software records yet.");
+        return;
+      }
+      for (const record of matches) {
+        const card = document.createElement("article");
+        card.className = "detail-record";
+        addText(card, "h3", record.name);
+        addText(card, "p", "Publisher: " + (record.publisher || "—"));
+        if (pageType === "titles") {
+          addText(card, "p", "Versions: " + record.versions);
+        } else {
+          addText(card, "p", "Version: " + (record.number ?? "—"));
+          addText(card, "p", "Status: " + record.status);
+        }
+        list.appendChild(card);
+      }
+    }
+
     async function loadDetails() {
       try {
         const response = await fetch("/api/software", {cache: "no-store"});
         if (!response.ok) throw new Error("HTTP " + response.status);
         const software = await response.json();
         if (!Array.isArray(software)) throw new Error("Unexpected response format");
-        const records = [];
+        allRecords = [];
         for (const item of software) {
           if (pageType === "titles") {
-            records.push({name:item.name, publisher:item.publisher, versions:(item.versions || []).length});
+            allRecords.push({name:item.name, publisher:item.publisher, versions:(item.versions || []).length});
           } else {
             for (const version of (item.versions || [])) {
               if (version.status === pageType) {
-                records.push({name:item.name, publisher:item.publisher, number:version.number, status:version.status});
+                allRecords.push({name:item.name, publisher:item.publisher, number:version.number, status:version.status});
               }
             }
           }
         }
-        count.textContent = records.length + (pageType === "titles" ? " software title(s)" : " software version(s)");
-        list.replaceChildren();
-        if (!records.length) {
-          addText(list, "p", "No matching software records yet.");
-          return;
-        }
-        for (const record of records) {
-          const card = document.createElement("article");
-          card.className = "detail-record";
-          addText(card, "h3", record.name);
-          addText(card, "p", "Publisher: " + (record.publisher || "—"));
-          if (pageType === "titles") {
-            addText(card, "p", "Versions: " + record.versions);
-          } else {
-            addText(card, "p", "Version: " + (record.number ?? "—"));
-            addText(card, "p", "Status: " + record.status);
-          }
-          list.appendChild(card);
-        }
+        loadFailed = false;
+        renderDetails();
       } catch (error) {
         console.error("Unable to load detail page:", error);
+        loadFailed = true;
         count.textContent = "Unable to load software records.";
         list.replaceChildren();
         addText(list, "p", "Please refresh the page to try again.");
       }
     }
+    search.addEventListener("input", renderDetails);
     loadDetails();
   </script>
 </body>
