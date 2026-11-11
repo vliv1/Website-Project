@@ -4,6 +4,19 @@ const overlay = document.getElementById("sidebarOverlay");
 const toggle = document.getElementById("menuToggle");
 const navLinks = document.querySelectorAll(".nav-link");
 
+// Keep Settings in the area it was opened from, including on refresh or in
+// another tab. Destinations are fixed links; /admin still requires sign-in.
+const isAdminSettings =
+  window.location.pathname === "/settings.html" &&
+  new URLSearchParams(window.location.search).get("from") === "admin";
+
+if (isAdminSettings) {
+  document.querySelectorAll("[data-admin-href]").forEach(link => {
+    link.setAttribute("href", link.dataset.adminHref);
+  });
+  document.title = "SoftTrack | Admin Settings";
+}
+
 
 function closeMenu() {
   if (!sidebar || !overlay || !toggle) return;
@@ -77,7 +90,7 @@ const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
 const themeLabel = document.getElementById("themeLabel");
 
-const THEME_KEY = "softTrackTheme";
+const THEME_KEY = isAdminSettings ? "softTrackAdminTheme" : "softTrackTheme";
 
 function applyTheme(theme) {
   const isDark = theme === "dark";

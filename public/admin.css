@@ -7,6 +7,22 @@
 
 /* Page */
 
+.admin-sidebar-logo svg { display: block; width: 28px; height: 28px; }
+.admin-page .admin-sidebar-links a { display: flex; align-items: center; gap: 10px; }
+.admin-nav-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; }
+.admin-nav-icon svg { display: block; width: 20px; height: 20px; }
+
+.admin-shortcuts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; margin-top: 20px; }
+.admin-shortcut { display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1px solid #cbd5e1; border-radius: 12px; color: inherit; text-decoration: none; }
+.admin-shortcut strong { color: #2563eb; }
+.admin-shortcut span { line-height: 1.5; }
+.admin-shortcut:hover { background: #eff6ff; border-color: #2563eb; }
+.admin-shortcut:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.admin-page[data-theme="dark"] .admin-shortcut { border-color: #475569; }
+.admin-page[data-theme="dark"] .admin-shortcut strong { color: #93c5fd; }
+.admin-page[data-theme="dark"] .admin-shortcut:hover { background: #1e2d45; border-color: #93c5fd; }
+#adminSettings button[aria-pressed="true"] { background: #2563eb; color: white; border-color: #2563eb; }
+
 .admin-page {
   min-height: 100vh;
   margin: 0;
@@ -208,6 +224,7 @@ html {
 #adminDashboard,
 #adminInventory,
 #adminAddSoftware,
+#adminImport,
 #adminAudit {
   scroll-margin-top: 24px;
 }
@@ -844,3 +861,22 @@ html {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* CSV import */
+.admin-file-label { display: block; margin: 20px 0 10px; font-weight: 600; }
+#csvFile { max-width: 100%; font: inherit; }
+#csvFile::file-selector-button { padding: 10px 14px; margin-right: 12px; cursor: pointer; }
+#csvHelp, #csvImportMessage { line-height: 1.6; }
+.admin-import-button { margin-top: 16px; padding: 12px 20px; border: 0; border-radius: 8px; background: #2563eb; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+.admin-import-button:hover:not(:disabled) { background: #1d4ed8; }
+.admin-import-button:disabled { opacity: .5; cursor: not-allowed; }
+.admin-import-button:focus-visible, #csvFile:focus-visible, .admin-import-table:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.admin-import-table { overflow-x: auto; margin-top: 16px; }
+.admin-import-table table { width: 100%; border-collapse: collapse; text-align: left; }
+.admin-import-table caption { text-align: left; padding-bottom: 12px; font-weight: 600; }
+.admin-import-table th, .admin-import-table td { padding: 12px; border-bottom: 1px solid #cbd5e1; overflow-wrap: anywhere; min-width: 80px; max-width: 280px; white-space: pre-wrap; }
+.admin-import-errors { color: #991b1b; line-height: 1.6; }
+.admin-page[data-theme="dark"] .admin-import-errors { color: #fca5a5; }
+.admin-page[data-theme="dark"] .admin-import-table th,
+.admin-page[data-theme="dark"] .admin-import-table td { border-color: #475569; }
+.admin-page[data-theme="dark"] #csvImportMessage a { color: #93c5fd; }

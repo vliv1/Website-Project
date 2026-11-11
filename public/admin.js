@@ -3,8 +3,7 @@
 
 "use strict";
 
-// SoftTrack V3 Administrator Dashboard
-// Phase 1: Read-only administrator inventory.
+// Shared behavior for the protected administrator pages.
 
 const adminEmail = document.getElementById("adminEmail");
 const logoutButton = document.getElementById("logoutButton");
@@ -23,7 +22,8 @@ const refreshButton =
 let softwareInventory = [];
 
 function setAdminCount(id, value) {
-  document.getElementById(id).textContent = String(value);
+  const counter = document.getElementById(id);
+  if (counter) counter.textContent = String(value);
 }
 
 function updateAdminStats() {
@@ -315,6 +315,7 @@ function createVersionEditor(version) {
 
 
 function renderAdminInventory() { 
+  if (!adminSoftwareList) return;
   adminSoftwareList.replaceChildren();
 
   const query = adminSearch.value.trim().toLowerCase();
@@ -625,6 +626,7 @@ function renderAdminInventory() {
 
 
 async function loadAdminInventory() {
+  if (!adminMessage) return;
   adminMessage.textContent = "Loading software inventory...";
   refreshButton.disabled = true;
 
@@ -647,6 +649,7 @@ async function loadAdminInventory() {
     softwareInventory = data;
     updateAdminStats();
     renderAdminInventory();
+    if (!adminSoftwareList) adminMessage.textContent = "Inventory totals are up to date.";
   } catch (error) {
     console.error("Admin inventory error:", error);
     adminMessage.textContent =
@@ -685,6 +688,7 @@ async function loadAdmin() {
     adminContent.hidden = false;
 
     await loadAdminInventory();
+    await loadAuditHistory();
   } catch (error) {
     console.error("Session verification failed:", error);
 
@@ -716,14 +720,14 @@ logoutButton.addEventListener("click", async () => {
   }
 });
 
-adminSearch.addEventListener("input", renderAdminInventory);
+adminSearch?.addEventListener("input", renderAdminInventory);
 
-adminStatusFilter.addEventListener(
+adminStatusFilter?.addEventListener(
   "change",
   renderAdminInventory
 );
 
-refreshButton.addEventListener(
+refreshButton?.addEventListener(
   "click",
   loadAdminInventory
 );
@@ -736,23 +740,37 @@ const adminNavLinks = document.querySelectorAll(
 );
 
 function updateActiveAdminLink() {
-  const currentHash = window.location.hash || "#adminDashboard";
+  const currentPage = document.body.dataset.adminPage;
 
   adminNavLinks.forEach(link => {
-    const isActive = link.getAttribute("href") === currentHash;
+    const isActive = link.dataset.adminPage === currentPage;
 
     link.classList.toggle("active", isActive);
 
     if (isActive) {
-      link.setAttribute("aria-current", "location");
+      link.setAttribute("aria-current", "page");
     } else {
       link.removeAttribute("aria-current");
     }
   });
 }
 
-window.addEventListener("hashchange", updateActiveAdminLink);
 updateActiveAdminLink();
+
+// Keep bookmarks to the previous single-page admin dashboard working.
+function redirectLegacyAdminSection() {
+  if (!["/admin", "/admin/", "/admin.html"].includes(window.location.pathname)) return false;
+  const destination = new Map([
+    ["#adminInventory", "/admin/inventory"],
+    ["#adminAddSoftware", "/admin/add-software"],
+    ["#adminImport", "/admin/import"],
+    ["#adminAudit", "/admin/audit"]
+  ]).get(window.location.hash);
+  if (!destination) return false;
+  window.location.replace(destination);
+  return true;
+}
+window.addEventListener("hashchange", redirectLegacyAdminSection);
 
 // ==========================================
 // SoftTrack V3 Admin Light / Dark Mode
@@ -797,24 +815,26 @@ function applyAdminTheme(theme) {
     "aria-pressed",
     String(isDark)
   );
+  document.getElementById("adminLightMode")?.setAttribute("aria-pressed", String(!isDark));
+  document.getElementById("adminDarkMode")?.setAttribute("aria-pressed", String(isDark));
 }
 
 applyAdminTheme(getInitialAdminTheme());
 
-adminThemeToggle.addEventListener("click", () => {
-  const nextTheme =
-    document.body.dataset.theme === "dark"
-      ? "light"
-      : "dark";
-
-  applyAdminTheme(nextTheme);
-
+function saveAdminTheme(theme) {
+  applyAdminTheme(theme);
   try {
-    localStorage.setItem(adminThemeStorageKey, nextTheme);
+    localStorage.setItem(adminThemeStorageKey, theme);
   } catch (error) {
     console.warn("Unable to save theme preference:", error);
   }
+}
+
+adminThemeToggle.addEventListener("click", () => {
+  saveAdminTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
 });
+document.getElementById("adminLightMode")?.addEventListener("click", () => saveAdminTheme("light"));
+document.getElementById("adminDarkMode")?.addEventListener("click", () => saveAdminTheme("dark"));
 
 
 /* ==========================================
@@ -830,7 +850,7 @@ const addSoftwareButton =
 const addSoftwareMessage =
   document.getElementById("addSoftwareMessage");
 
-adminSoftwareForm.addEventListener("submit", async (event) => {
+adminSoftwareForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const name =
@@ -1109,6 +1129,7 @@ function renderAuditHistory(events) {
 
 
 async function loadAuditHistory() { 
+  if (!auditHistoryList) return;
   auditMessage.textContent =
     "Loading audit history...";
 
@@ -1155,23 +1176,11 @@ async function loadAuditHistory() {
   }
 }
 
-refreshAuditButton.addEventListener(
+refreshAuditButton?.addEventListener(
   "click",
   loadAuditHistory
 );
 
-// Load history when Audit History is selected.
-window.addEventListener("hashchange", () => {
-  if (window.location.hash === "#adminAudit") {
-    loadAuditHistory();
-  }
-});
-
-// Load history when opening directly at #adminAudit.
-if (window.location.hash === "#adminAudit") {
-  loadAuditHistory();
-}
-
-// Start the administrator dashboard.
-loadAdmin();
+// Verify the session before loading this page's data.
+if (!redirectLegacyAdminSection()) loadAdmin();
 

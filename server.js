@@ -128,14 +128,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function requireAdminPage(req, res, next) {
-  if (!req.session.adminId) {
-    return res.redirect("/login.html");
-  }
-
-  next();
-}
-
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -281,17 +273,8 @@ app.post(
   }
 );
 
-// Protect the private administrator page.
-app.get(
-  "/admin",
-  requireAdminPage,
-  (req, res) => {
-    res.set("Cache-Control", "no-store");
-    res.sendFile(
-      path.join(__dirname, "private", "admin.html")
-    );
-  }
-);
+// Protect all administrator HTML pages, including direct file-name URLs.
+app.use(require("./routes/admin-pages"));
 
 app.use("/api/software", softwareRoutes);
 app.use("/api/security-watch", securityWatchRoutes);

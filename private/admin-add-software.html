@@ -1,0 +1,169 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>SoftTrack | Add Software</title>
+
+  
+  <link rel="stylesheet" href="/admin.css">
+
+  <script src="/admin.js" defer></script>
+</head>
+
+<body class="admin-page" data-admin-page="add-software">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+
+  <div class="admin-sidebar-brand">
+    <span class="admin-sidebar-logo" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></span>
+    <div>
+      <strong>SoftTrack</strong>
+      <small>V3 Administration</small>
+    </div>
+  </div>
+
+  <nav class="admin-sidebar-links"
+       aria-label="Admin navigation">
+
+    <a href="/admin" data-admin-page="dashboard">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span> Dashboard</a>
+
+    <a href="/admin/inventory" data-admin-page="inventory">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span> Software Inventory</a>
+
+    <a href="/admin/add-software" data-admin-page="add-software" class="active" aria-current="page">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span> Add Software</a>
+
+    <a href="/admin/import" data-admin-page="import">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg></span> Import CSV</a>
+
+    <a href="/admin/audit" data-admin-page="audit">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span> Audit History</a>
+
+    <a href="/admin/settings" data-admin-page="settings">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/></svg></span> Settings
+    </a>
+
+  </nav>
+
+  <div class="admin-sidebar-footer">
+    <span>● System Online</span>
+    <small>SoftTrack Version 3</small>
+  </div>
+
+</aside>
+
+
+
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">SOFTTRACK V3</span>
+      <h1>Add Software</h1>
+      <p>Add a new software version to SoftTrack.</p>
+    </div>
+
+    <div class="admin-header-actions">
+  <button
+    id="adminThemeToggle"
+    type="button"
+    aria-label="Switch to dark mode"
+    aria-pressed="false"
+  >
+    🌙 Dark Mode
+  </button>
+
+  <span id="adminEmail">Verifying session...</span>
+
+      <a href="/" class="admin-link">
+        Public Inventory
+      </a>
+
+      <button id="logoutButton" type="button">
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <main class="admin-container" id="adminContent" hidden>
+    <section id="adminAddSoftware" class="admin-panel">
+
+  <div class="admin-panel-heading">
+    <div>
+      <h2>＋ Add Software</h2>
+      <p>Add a new software version to SoftTrack.</p>
+    </div>
+  </div>
+
+  <form id="adminSoftwareForm" class="admin-add-form">
+
+    <div class="admin-form-grid">
+
+      <label>
+        Software Name
+        <input
+          id="newSoftwareName"
+          type="text"
+          maxlength="120"
+          placeholder="Google Chrome"
+          required
+        >
+      </label>
+
+      <label>
+        Publisher
+        <input
+          id="newPublisher"
+          type="text"
+          maxlength="120"
+          placeholder="Google"
+          required
+        >
+      </label>
+
+      <label>
+        Version
+        <input
+          id="newVersion"
+          type="text"
+          maxlength="80"
+          placeholder="130.0.0"
+          required
+        >
+      </label>
+
+      <label>
+        Approval Status
+        <select id="newStatus">
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Denied">Denied</option>
+        </select>
+      </label>
+
+    </div>
+
+    <button
+      id="addSoftwareButton"
+      type="submit"
+    
+    >
+      ＋ Add Software Version
+    </button>
+
+    <p id="addSoftwareMessage" role="status" aria-live="polite">
+      Ready to add software.
+    </p>
+
+  </form>
+
+</section>
+  </main>
+</body>
+</html>
