@@ -65,6 +65,32 @@ function makeElement(tag, text, className = "") {
 
 
 
+// Accessible, dependency-free SVG icons for software management actions.
+const adminActionIconPaths = {
+  groupEdit: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v3"/><path d="M3 7h18"/><path d="m15 19 4.5-4.5a2.12 2.12 0 0 1 3 3L18 22l-4 1 1-4Z"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  delete: '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'
+};
+
+function setAdminActionButton(button, label, iconName, kind) {
+  button.textContent = "";
+  button.classList.add("admin-action-button", `admin-action-${kind}`);
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "1.8");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.setAttribute("aria-hidden", "true");
+  // Paths are hardcoded locally, not derived from software inventory data.
+  icon.innerHTML = adminActionIconPaths[iconName];
+  const text = document.createElement("span");
+  text.textContent = label;
+  button.append(icon, text);
+  button.setAttribute("aria-label", label);
+}
+
 /* ==========================================
    EDIT SOFTWARE GROUP
    ========================================== */
@@ -354,6 +380,7 @@ function createAdminSoftwareCard(software, selectedVersion) {
 
   editGroupButton.type = "button";
   editGroupButton.className = "admin-edit-button";
+  setAdminActionButton(editGroupButton, "Edit Group", "groupEdit", "edit");
 
   editGroupButton.addEventListener("click", () => {
     const existingEditor = card.querySelector(
@@ -383,6 +410,7 @@ function createAdminSoftwareCard(software, selectedVersion) {
 
   deleteGroupButton.type = "button";
   deleteGroupButton.className = "admin-delete-button";
+  setAdminActionButton(deleteGroupButton, "Delete Group", "delete", "delete");
 
   deleteGroupButton.addEventListener("click", async () => {
     const versionCount = (software.versions || []).length;
@@ -491,6 +519,7 @@ function createAdminSoftwareCard(software, selectedVersion) {
 
     editButton.type = "button";
     editButton.className = "admin-edit-button";
+    setAdminActionButton(editButton, "Edit", "edit", "edit");
 
     editButton.addEventListener("click", () => {
       const existingEditor = row.querySelector(
@@ -514,6 +543,7 @@ function createAdminSoftwareCard(software, selectedVersion) {
 
     deleteButton.type = "button";
     deleteButton.className = "admin-delete-button";
+    setAdminActionButton(deleteButton, "Delete", "delete", "delete");
 
     deleteButton.addEventListener("click", async () => {
       const confirmed = window.confirm(

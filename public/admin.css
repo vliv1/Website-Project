@@ -897,3 +897,77 @@ html {
 .admin-page[data-theme="dark"] .admin-import-table th,
 .admin-page[data-theme="dark"] .admin-import-table td { border-color: #475569; }
 .admin-page[data-theme="dark"] #csvImportMessage a { color: #93c5fd; }
+
+/* ==========================================
+   SOFTTRACK V3 — MODERN MANAGEMENT ACTIONS
+   ========================================== */
+.admin-page .admin-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+.admin-page .admin-action-button svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+.admin-page .admin-action-edit {
+  background: #edf4ff;
+  border: 1px solid #b8cdee;
+  color: #174a94;
+}
+.admin-page .admin-action-edit:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #6ca4ed;
+}
+.admin-page .admin-action-delete {
+  background: transparent;
+  border: 1px solid #dc3545;
+  color: #b42332;
+}
+.admin-page .admin-action-delete:hover:not(:disabled) {
+  background: #b42332;
+  color: #fff;
+}
+.admin-page .admin-action-button:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+.admin-page .admin-action-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.admin-page[data-theme="dark"] .admin-action-edit {
+  background: #304661;
+  border-color: #516987;
+  color: #f8fafc;
+}
+.admin-page[data-theme="dark"] .admin-action-edit:hover:not(:disabled) {
+  background: #3c5878;
+  border-color: #8bb7f3;
+}
+.admin-page[data-theme="dark"] .admin-action-delete {
+  background: transparent;
+  border-color: #fb7185;
+  color: #fda4af;
+}
+.admin-page[data-theme="dark"] .admin-action-delete:hover:not(:disabled) {
+  background: #9f2338;
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-page .admin-action-button { transition: none; }
+}
