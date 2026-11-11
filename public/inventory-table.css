@@ -1,0 +1,68 @@
+/* The public and admin inventory use the same table and controls. */
+.inventory-grid {
+  --table-surface: #fff;
+  --table-heading: #f1f5f9;
+  --table-text: #172033;
+  --table-muted: #52627a;
+  --table-border: #cbd5e1;
+  --table-hover: #eff6ff;
+  color: var(--table-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: 0;
+}
+html.dark-mode .inventory-grid,
+.admin-page[data-theme="dark"] .inventory-grid {
+  --table-surface: #18243a;
+  --table-heading: #101b2e;
+  --table-text: #f1f5f9;
+  --table-muted: #b5c3d7;
+  --table-border: #475569;
+  --table-hover: #223450;
+}
+.inventory-grid *, .inventory-grid *::before, .inventory-grid *::after { box-sizing: border-box; }
+.inventory-table-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.inventory-table-summary { margin: 0; color: var(--table-muted); }
+.inventory-table-toolbar label { display: flex; flex-direction: row; align-items: center; gap: 10px; font: inherit; white-space: nowrap; }
+.inventory-grid select { width: auto; padding: 8px 12px; background: var(--table-surface); color: var(--table-text); border: 1px solid var(--table-border); border-radius: 8px; font: inherit; }
+.inventory-table-scroll { overflow-x: auto; border: 1px solid var(--table-border); border-radius: 12px; }
+.inventory-table-scroll[hidden], .inventory-table-empty[hidden] { display: none; }
+.inventory-table { border-collapse: collapse; width: 100%; min-width: 580px; text-align: left; background: var(--table-surface); }
+.inventory-table-caption { padding: 12px 16px; text-align: left; color: var(--table-muted); font-size: 13px; }
+.inventory-table th { background: var(--table-heading); font-weight: 650; }
+.inventory-table th, .inventory-table td { padding: 14px 16px; border-bottom: 1px solid var(--table-border); vertical-align: top; }
+.inventory-table td { overflow-wrap: anywhere; max-width: 300px; }
+.inventory-table tbody tr:not(.inventory-detail-row) { height: 68px; }
+.inventory-table td:first-child { font-weight: 600; min-width: 150px; }
+.inventory-table tbody tr:last-child > td { border-bottom: 0; }
+.inventory-table tbody tr:hover > td { background: var(--table-hover); }
+.inventory-grid button { font: inherit; font-weight: 600; border: 1px solid var(--table-border); border-radius: 8px; padding: 8px 12px; background: var(--table-surface); color: var(--table-text); cursor: pointer; transform: none; }
+.inventory-grid button:hover:not(:disabled) { background: var(--table-hover); transform: none; }
+.inventory-grid button:disabled { opacity: .45; cursor: not-allowed; }
+.inventory-table th button { padding: 0; border: 0; border-radius: 2px; text-align: left; background: transparent; white-space: nowrap; }
+.inventory-table th[aria-sort="ascending"], .inventory-table th[aria-sort="descending"] { box-shadow: inset 0 -2px #2563eb; }
+.inventory-grid button:focus-visible, .inventory-grid select:focus-visible, .inventory-table-scroll:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+.inventory-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 18px; }
+.inventory-pagination span { color: var(--table-muted); }
+.inventory-table-empty { padding: 26px 16px; text-align: center; color: var(--table-muted); border: 1px dashed var(--table-border); border-radius: 12px; }
+.inventory-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 650; font-size: 12px; white-space: nowrap; }
+.inventory-grid .status-approved { background: #dcfce7; color: #166534; }
+.inventory-grid .status-pending { background: #fef3c7; color: #92400e; }
+.inventory-grid .status-denied { background: #fee2e2; color: #991b1b; }
+html.dark-mode .inventory-grid .status-approved,
+.admin-page[data-theme="dark"] .inventory-grid .status-approved { background: #14532d; color: #dcfce7; }
+html.dark-mode .inventory-grid .status-pending,
+.admin-page[data-theme="dark"] .inventory-grid .status-pending { background: #78350f; color: #fef3c7; }
+html.dark-mode .inventory-grid .status-denied,
+.admin-page[data-theme="dark"] .inventory-grid .status-denied { background: #7f1d1d; color: #fee2e2; }
+.inventory-detail-row .admin-software-card { margin: 0; }
+.inventory-detail-row .admin-version-editor { box-sizing: border-box; }
+.inventory-detail-row .admin-version-row { flex-wrap: wrap; }
+.inventory-detail-row .admin-delete-button { border-color: #dc3545; color: #dc3545; }
+.inventory-detail-row .admin-edit-save { background: #2563eb; color: white; }
+.inventory-detail-row td { font-weight: 400 !important; }
+@media (max-width: 600px) {
+  .inventory-pagination { justify-content: space-between; gap: 8px; }
+  .inventory-table-toolbar { align-items: flex-start; flex-direction: column; }
+}

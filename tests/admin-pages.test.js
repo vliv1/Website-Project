@@ -5,6 +5,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const InventoryTable = require("../public/inventory-table");
+const { createDocument } = require("./helpers/dom");
 
 const pages = [
   ["dashboard", "/admin", "admin.html", "adminDashboard"],
@@ -17,28 +19,17 @@ const pages = [
 
 function loadPage(filename, pathname, hash = "", authenticated = true) {
   const html = fs.readFileSync(path.resolve("private", filename), "utf8");
-  const elements = new Map();
-  function element() {
-    const attrs = {}, classes = new Set();
-    return {
-      value: "", children: [], handlers: {}, dataset: {}, hidden: true,
-      classList: { toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); } },
-      setAttribute(name, value) { attrs[name] = value; },
-      getAttribute(name) { return attrs[name]; },
-      removeAttribute(name) { delete attrs[name]; },
-      addEventListener(name, callback) { this.handlers[name] = callback; },
-      appendChild(child) { this.children.push(child); },
-      append(...children) { this.children.push(...children); },
-      replaceChildren() { this.children = []; }
-    };
-  }
+  const document = createDocument();
+  const elements = document.elements;
+  const element = () => document.createElement("div");
   for (const [, id] of html.matchAll(/\bid="([^"]+)"/g)) elements.set(id, element());
   if (elements.has("adminStatusFilter")) elements.get("adminStatusFilter").value = "All";
   const nav = pages.map(([key]) => ({ ...element(), dataset: { adminPage: key } }));
   const requests = [], redirects = [], saved = new Map();
+  elements.get("adminContent").hidden = true;
   const body = { dataset: { adminPage: html.match(/<body[^>]*data-admin-page="([^"]+)"/)[1] } };
   const context = {
-    console, document: { body, getElementById: id => elements.get(id) || null, querySelectorAll: () => nav, createElement: element },
+    console, InventoryTable, document: Object.assign(document, { body, querySelectorAll: () => nav }),
     window: { location: { pathname, hash, replace: url => redirects.push(url) }, addEventListener() {}, matchMedia: () => ({ matches: false }) },
     localStorage: { getItem: key => saved.get(key), setItem: (key, value) => saved.set(key, value) },
     fetch: async url => {

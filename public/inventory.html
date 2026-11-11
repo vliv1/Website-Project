@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SoftTrack | Software Inventory</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/inventory-table.css">
+  <script src="/inventory-table.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -128,7 +130,7 @@
           </select>
         </div>
 
-        <!-- Software records rendered by app.js -->
+        <!-- Shared sortable inventory table rendered by app.js -->
         <div id="softwareList"></div>
 
         <p id="emptyMessage" hidden>

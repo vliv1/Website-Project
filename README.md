@@ -17,6 +17,17 @@ All pages share the admin navigation, theme preference, and sign-out controls.
 Direct HTML filename URLs also require login. Old `/admin#...` section bookmarks
 redirect to their new pages. Restart `npm start` after changes to server routes.
 
+The public `/inventory.html` and admin `/admin/inventory` pages share a sortable
+inventory table. Each row represents one version; software without versions has
+an explicit empty row. Click Software, Publisher, Version, or Status to toggle
+ascending/descending sorting. Version sorting uses natural numeric ordering
+(for example, 1.9 before 1.10), not semantic-version precedence.
+Pagination offers 25, 50, or 100 records per page. Search and status filters apply
+before pagination and reset to page 1. Public CSV exports include all matching
+versions in the chosen order, across all pages. Admin Manage panels retain
+version editing and deletion, as well as software-group editing and deletion.
+Pagination currently runs in the browser over the existing inventory API result.
+
 CSV import is available on the authenticated `/admin/import` page.
 Download the template, replace its sample row, select your UTF-8 CSV, review the
 preview, and click Import. Required columns are `name,publisher,version`; optional

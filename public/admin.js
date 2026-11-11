@@ -20,6 +20,11 @@ const refreshButton =
   document.getElementById("refreshButton");
 
 let softwareInventory = [];
+let adminInventoryError = "";
+const adminInventoryTable = adminSoftwareList ? InventoryTable.create({
+  container: adminSoftwareList,
+  createDetails: ({ software, version }) => createAdminSoftwareCard(software, version)
+}) : null;
 
 function setAdminCount(id, value) {
   const counter = document.getElementById(id);
@@ -314,81 +319,182 @@ function createVersionEditor(version) {
 
 
 
-function renderAdminInventory() { 
-  if (!adminSoftwareList) return;
-  adminSoftwareList.replaceChildren();
+function renderAdminInventory() {
+  if (!adminInventoryTable) return;
+  adminInventoryTable.update(adminInventoryError ? [] : softwareInventory, {
+    query: adminSearch.value,
+    status: adminStatusFilter.value,
+    error: adminInventoryError
+  });
+  adminMessage.textContent = adminInventoryError;
+}
 
-  const query = adminSearch.value.trim().toLowerCase();
-  const selectedStatus = adminStatusFilter.value;
+// Reuse the existing edit/delete workflow inside a table row's Manage panel.
+function createAdminSoftwareCard(software, selectedVersion) {
+  const card = document.createElement("article");
+  card.className = "admin-software-card";
 
-  const filtered = softwareInventory
-    .map(software => {
-      const groupMatches =
-        software.name.toLowerCase().includes(query) ||
-        software.publisher.toLowerCase().includes(query);
+  const title = makeElement(
+    "h3",
+    software.name,
+    "admin-software-title"
+  );
 
-      const versions = (software.versions || []).filter(v => {
-        const statusMatches =
-          selectedStatus === "All" ||
-          v.status === selectedStatus;
+  const publisher = makeElement(
+    "p",
+    software.publisher,
+    "admin-publisher"
+  );
 
-        const searchMatches =
-          !query ||
-          groupMatches ||
-          String(v.number).toLowerCase().includes(query);
+  // Edit Software Group button
+  const editGroupButton = makeElement(
+    "button",
+    "✏️ Edit Software Group"
+  );
 
-        return statusMatches && searchMatches;
-      });
+  editGroupButton.type = "button";
+  editGroupButton.className = "admin-edit-button";
 
-      return { ...software, versions };
-    })
-    .filter(software =>
-      software.versions.length > 0 ||
-      (
-        selectedStatus === "All" &&
-        (
-          software.name.toLowerCase().includes(query) ||
-          software.publisher.toLowerCase().includes(query)
-        )
-      )
+  editGroupButton.addEventListener("click", () => {
+    const existingEditor = card.querySelector(
+      ".admin-group-editor"
     );
 
-  if (filtered.length === 0) {
+    if (existingEditor) {
+      existingEditor.remove();
+      return;
+    }
+
+    const editor = createSoftwareGroupEditor(software);
+    editor.classList.add("admin-group-editor");
+
+    card.insertBefore(
+      editor,
+      card.firstChild.nextSibling
+    );
+  });
+
+
+  // Delete Software Group button
+  const deleteGroupButton = makeElement(
+    "button",
+    "🗑️ Delete Software Group"
+  );
+
+  deleteGroupButton.type = "button";
+  deleteGroupButton.className = "admin-delete-button";
+
+  deleteGroupButton.addEventListener("click", async () => {
+    const versionCount = (software.versions || []).length;
+
+    const confirmed = window.confirm(
+      `PERMANENTLY DELETE SOFTWARE GROUP?\n\n` +
+      `Software: ${software.name}\n` +
+      `Publisher: ${software.publisher}\n` +
+      `Total versions in this software group: ${versionCount}\n\n` +
+      `WARNING: ALL versions in this group will be deleted, ` +
+      `including any hidden by filters.\n\n` +
+      `This action cannot be undone.\n` +
+      `Audit history will be preserved.`
+    );
+
+    if (!confirmed) return;
+
+    // Extra confirmation for deleting an entire group.
+    const typedName = window.prompt(
+      `To confirm, type the exact software name:\n${software.name}`
+    );
+
+    if (typedName !== software.name) {
+      if (typedName !== null) {
+        window.alert("Software name did not match. Deletion canceled.");
+      }
+      return;
+    }
+
+    deleteGroupButton.disabled = true;
+    editGroupButton.disabled = true;
+
     adminMessage.textContent =
-      "No software records match your filters.";
-    return;
-  }
+      `Deleting software group ${software.name}...`;
 
-  adminMessage.textContent = "";
+    try {
+      const response = await fetch(
+        `/api/software/${encodeURIComponent(software.id)}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin"
+        }
+      );
 
-  filtered.forEach(software => {
-    const card = document.createElement("article");
-    card.className = "admin-software-card";
+      if (response.status === 401) {
+        window.location.replace("/login.html");
+        return;
+      }
 
-    const title = makeElement(
-      "h3",
-      software.name,
-      "admin-software-title"
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to delete software group."
+        );
+      }
+
+      await loadAdminInventory();
+
+      adminMessage.textContent =
+        `${software.name} was deleted successfully. ` +
+        `${result.deletedVersions} version(s) removed. ` +
+        `Audit history preserved.`;
+
+    } catch (error) {
+      console.error("Software group deletion failed:", error);
+
+      adminMessage.textContent =
+        error.message || "Unable to delete software group.";
+
+    } finally {
+      deleteGroupButton.disabled = false;
+      editGroupButton.disabled = false;
+    }
+  });
+
+  card.append(
+    title,
+    publisher,
+    editGroupButton,
+    deleteGroupButton
+  );
+
+
+  // Display each software version
+  (selectedVersion ? [selectedVersion] : software.versions || []).forEach(version => {
+    const row = document.createElement("div");
+    row.className = "admin-version-row";
+
+    const number = makeElement(
+      "span",
+      `Version ${version.number}`
     );
 
-    const publisher = makeElement(
-      "p",
-      software.publisher,
-      "admin-publisher"
+    const status = makeElement(
+      "span",
+      version.status,
+      `admin-status status-${version.status.toLowerCase()}`
     );
 
-    // Edit Software Group button
-    const editGroupButton = makeElement(
+    // Edit Version button
+    const editButton = makeElement(
       "button",
-      "✏️ Edit Software Group"
+      "✏️ Edit"
     );
 
-    editGroupButton.type = "button";
-    editGroupButton.className = "admin-edit-button";
+    editButton.type = "button";
+    editButton.className = "admin-edit-button";
 
-    editGroupButton.addEventListener("click", () => {
-      const existingEditor = card.querySelector(
-        ".admin-group-editor"
+    editButton.addEventListener("click", () => {
+      const existingEditor = row.querySelector(
+        ".admin-version-editor"
       );
 
       if (existingEditor) {
@@ -396,62 +502,42 @@ function renderAdminInventory() {
         return;
       }
 
-      const editor = createSoftwareGroupEditor(software);
-      editor.classList.add("admin-group-editor");
-
-      card.insertBefore(
-        editor,
-        card.firstChild.nextSibling
-      );
+      const editor = createVersionEditor(version);
+      row.appendChild(editor);
     });
 
-    
-    // Delete Software Group button
-    const deleteGroupButton = makeElement(
+    // NEW: Delete Version button
+    const deleteButton = makeElement(
       "button",
-      "🗑️ Delete Software Group"
+      "🗑️ Delete"
     );
 
-    deleteGroupButton.type = "button";
-    deleteGroupButton.className = "admin-delete-button";
+    deleteButton.type = "button";
+    deleteButton.className = "admin-delete-button";
 
-    deleteGroupButton.addEventListener("click", async () => {
-      const versionCount = (software.versions || []).length;
-
+    deleteButton.addEventListener("click", async () => {
       const confirmed = window.confirm(
-        `PERMANENTLY DELETE SOFTWARE GROUP?\n\n` +
-        `Software: ${software.name}\n` +
-        `Publisher: ${software.publisher}\n` +
-        `Versions currently displayed: ${versionCount}\n\n` +
-        `WARNING: ALL versions in this group will be deleted, ` +
-        `including any hidden by filters.\n\n` +
+        `Are you sure you want to permanently delete\n\n` +
+        `${software.name}\n` +
+        `Version ${version.number}\n` +
+        `Status: ${version.status}\n\n` +
         `This action cannot be undone.\n` +
-        `Audit history will be preserved.`
+        `An audit record will be preserved.`
       );
 
-      if (!confirmed) return;
-
-      // Extra confirmation for deleting an entire group.
-      const typedName = window.prompt(
-        `To confirm, type the exact software name:\n${software.name}`
-      );
-
-      if (typedName !== software.name) {
-        if (typedName !== null) {
-          window.alert("Software name did not match. Deletion canceled.");
-        }
+      if (!confirmed) {
         return;
       }
 
-      deleteGroupButton.disabled = true;
-      editGroupButton.disabled = true;
+      deleteButton.disabled = true;
+      editButton.disabled = true;
 
       adminMessage.textContent =
-        `Deleting software group ${software.name}...`;
+        `Deleting ${software.name} version ${version.number}...`;
 
       try {
         const response = await fetch(
-          `/api/software/${encodeURIComponent(software.id)}`,
+          `/api/software/versions/${encodeURIComponent(version.id)}`,
           {
             method: "DELETE",
             credentials: "same-origin"
@@ -467,161 +553,43 @@ function renderAdminInventory() {
 
         if (!response.ok) {
           throw new Error(
-            result.error || "Unable to delete software group."
+            result.error || "Unable to delete software version."
           );
         }
 
         await loadAdminInventory();
 
         adminMessage.textContent =
-          `${software.name} was deleted successfully. ` +
-          `${result.deletedVersions} version(s) removed. ` +
-          `Audit history preserved.`;
+          `${software.name} version ${version.number} ` +
+          `was deleted successfully. Audit history preserved.`;
 
       } catch (error) {
-        console.error("Software group deletion failed:", error);
+        console.error(
+          "Software version deletion failed:",
+          error
+        );
 
         adminMessage.textContent =
-          error.message || "Unable to delete software group.";
+          error.message || "Unable to delete software version.";
 
       } finally {
-        deleteGroupButton.disabled = false;
-        editGroupButton.disabled = false;
+        deleteButton.disabled = false;
+        editButton.disabled = false;
       }
     });
 
-    card.append(
-      title,
-      publisher,
-      editGroupButton,
-      deleteGroupButton
+    // Show both action buttons
+    row.append(
+      number,
+      status,
+      editButton,
+      deleteButton
     );
 
-
-    // Display each software version
-    software.versions.forEach(version => {
-      const row = document.createElement("div");
-      row.className = "admin-version-row";
-
-      const number = makeElement(
-        "span",
-        `Version ${version.number}`
-      );
-
-      const status = makeElement(
-        "span",
-        version.status,
-        `admin-status status-${version.status.toLowerCase()}`
-      );
-
-      // Edit Version button
-      const editButton = makeElement(
-        "button",
-        "✏️ Edit"
-      );
-
-      editButton.type = "button";
-      editButton.className = "admin-edit-button";
-
-      editButton.addEventListener("click", () => {
-        const existingEditor = row.querySelector(
-          ".admin-version-editor"
-        );
-
-        if (existingEditor) {
-          existingEditor.remove();
-          return;
-        }
-
-        const editor = createVersionEditor(version);
-        row.appendChild(editor);
-      });
-
-      // NEW: Delete Version button
-      const deleteButton = makeElement(
-        "button",
-        "🗑️ Delete"
-      );
-
-      deleteButton.type = "button";
-      deleteButton.className = "admin-delete-button";
-
-      deleteButton.addEventListener("click", async () => {
-        const confirmed = window.confirm(
-          `Are you sure you want to permanently delete\n\n` +
-          `${software.name}\n` +
-          `Version ${version.number}\n` +
-          `Status: ${version.status}\n\n` +
-          `This action cannot be undone.\n` +
-          `An audit record will be preserved.`
-        );
-
-        if (!confirmed) {
-          return;
-        }
-
-        deleteButton.disabled = true;
-        editButton.disabled = true;
-
-        adminMessage.textContent =
-          `Deleting ${software.name} version ${version.number}...`;
-
-        try {
-          const response = await fetch(
-            `/api/software/versions/${encodeURIComponent(version.id)}`,
-            {
-              method: "DELETE",
-              credentials: "same-origin"
-            }
-          );
-
-          if (response.status === 401) {
-            window.location.replace("/login.html");
-            return;
-          }
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              result.error || "Unable to delete software version."
-            );
-          }
-
-          await loadAdminInventory();
-
-          adminMessage.textContent =
-            `${software.name} version ${version.number} ` +
-            `was deleted successfully. Audit history preserved.`;
-
-        } catch (error) {
-          console.error(
-            "Software version deletion failed:",
-            error
-          );
-
-          adminMessage.textContent =
-            error.message || "Unable to delete software version.";
-
-        } finally {
-          deleteButton.disabled = false;
-          editButton.disabled = false;
-        }
-      });
-
-      // Show both action buttons
-      row.append(
-        number,
-        status,
-        editButton,
-        deleteButton
-      );
-
-      card.appendChild(row);
-    });
-
-    adminSoftwareList.appendChild(card);
+    card.appendChild(row);
   });
+
+  return card;
 }
 
 
@@ -647,13 +615,15 @@ async function loadAdminInventory() {
     }
 
     softwareInventory = data;
+    adminInventoryError = "";
     updateAdminStats();
     renderAdminInventory();
     if (!adminSoftwareList) adminMessage.textContent = "Inventory totals are up to date.";
   } catch (error) {
     console.error("Admin inventory error:", error);
-    adminMessage.textContent =
-      "Unable to load software inventory.";
+    adminInventoryError = "Unable to load software inventory. Please refresh to try again.";
+    renderAdminInventory();
+    adminMessage.textContent = adminInventoryError;
   } finally {
     refreshButton.disabled = false;
   }

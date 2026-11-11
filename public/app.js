@@ -10,6 +10,7 @@ const searchInput = document.getElementById("search");
 const statusFilter = document.getElementById("statusFilter");
 const exportBtn = document.getElementById("exportBtn");
 
+const publicInventoryTable = softwareList ? InventoryTable.create({ container: softwareList }) : null;
 let inventory = [];
 let loadError = false;
 
@@ -204,139 +205,15 @@ function renderApprovalChart() {
   container.appendChild(wrapper);
 }
 
-function getFilteredInventory() {
-  const query = searchInput
-    ? searchInput.value.trim().toLowerCase()
-    : "";
-
-  const selectedStatus = statusFilter
-    ? statusFilter.value
-    : "All";
-
-  return inventory
-    .map(software => {
-      const groupMatches =
-        software.name.toLowerCase().includes(query) ||
-        software.publisher.toLowerCase().includes(query);
-
-      const versions = (software.versions || []).filter(v => {
-        const matchesStatus =
-          selectedStatus === "All" ||
-          v.status === selectedStatus;
-
-        const matchesSearch =
-          !query ||
-          groupMatches ||
-          String(v.number).toLowerCase().includes(query);
-
-        return matchesStatus && matchesSearch;
-      });
-
-      return { ...software, versions };
-    })
-    .filter(software => {
-      const hasVersions = software.versions.length > 0;
-
-      const matchesGroup =
-        software.name.toLowerCase().includes(query) ||
-        software.publisher.toLowerCase().includes(query);
-
-      return hasVersions ||
-        (selectedStatus === "All" && matchesGroup);
-    });
-}
-
-function createTextElement(tag, text, className = "") {
-  const element = document.createElement(tag);
-  element.textContent = text;
-
-  if (className) element.className = className;
-
-  return element;
-}
-
 function renderInventory() {
-  // The Dashboard has no Inventory section.
-  if (!softwareList || !emptyMessage) return;
-
-  softwareList.replaceChildren();
-
-  const filtered = getFilteredInventory();
-
-  if (filtered.length === 0) {
-    emptyMessage.hidden = false;
-
-    emptyMessage.textContent = loadError
-      ? "Unable to load software inventory."
-      : "No software records match your filters.";
-
-    return;
-  }
-
-  emptyMessage.hidden = true;
-
-  filtered.forEach(software => {
-    const card = document.createElement("article");
-    card.className = "software-group";
-
-    const heading = document.createElement("div");
-    heading.className = "software-heading";
-
-    const title = createTextElement(
-      "h3",
-      software.name,
-      "software-title"
-    );
-
-    const publisher = createTextElement(
-      "p",
-      software.publisher,
-      "software-publisher"
-    );
-
-    heading.append(title, publisher);
-    card.appendChild(heading);
-
-    const versions = document.createElement("div");
-    versions.className = "software-versions";
-
-    if (software.versions.length === 0) {
-      versions.appendChild(
-        createTextElement(
-          "p",
-          "No versions recorded.",
-          "help-text"
-        )
-      );
-    }
-
-    software.versions.forEach(version => {
-      const row = document.createElement("div");
-      row.className = "version-row";
-
-      const number = createTextElement(
-        "span",
-        `Version ${version.number}`,
-        "version-number"
-      );
-
-      const status = createTextElement(
-        "span",
-        version.status,
-        "status-badge"
-      );
-
-      status.classList.add(
-        `status-${version.status.toLowerCase()}`
-      );
-
-      row.append(number, status);
-      versions.appendChild(row);
-    });
-
-    card.appendChild(versions);
-    softwareList.appendChild(card);
+  if (!publicInventoryTable) return;
+  if (emptyMessage) emptyMessage.hidden = true;
+  publicInventoryTable.update(inventory, {
+    query: searchInput?.value || "",
+    status: statusFilter?.value || "All",
+    error: loadError ? "Unable to load software inventory. Please refresh to try again." : ""
   });
+  if (exportBtn) exportBtn.disabled = loadError;
 }
 
 function escapeCsv(value) {
@@ -355,15 +232,9 @@ function exportCsv() {
     ["Software", "Publisher", "Version", "Status"]
   ];
 
-  getFilteredInventory().forEach(software => {
-    software.versions.forEach(version => {
-      rows.push([
-        software.name,
-        software.publisher,
-        version.number,
-        version.status
-      ]);
-    });
+  // Export every matching row in the selected sort order, across all pages.
+  publicInventoryTable.getFilteredRows().forEach(row => {
+    if (row.version) rows.push([row.name, row.publisher, row.number, row.status]);
   });
 
   const csv = rows
@@ -416,7 +287,7 @@ async function loadInventory() {
   updateDashboard();
   renderApprovalChart();
 
-  // Render software cards only on the Inventory page.
+  // Render the table only on the Inventory page.
   if (softwareList && emptyMessage) {
     renderInventory();
   }
