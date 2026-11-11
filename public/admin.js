@@ -736,7 +736,7 @@ refreshButton?.addEventListener(
 // Highlight the selected admin navigation link
 
 const adminNavLinks = document.querySelectorAll(
-  ".admin-sidebar-links a"
+  ".admin-sidebar a[data-admin-page]"
 );
 
 function updateActiveAdminLink() {
@@ -776,9 +776,6 @@ window.addEventListener("hashchange", redirectLegacyAdminSection);
 // SoftTrack V3 Admin Light / Dark Mode
 // ==========================================
 
-const adminThemeToggle =
-  document.getElementById("adminThemeToggle");
-
 const adminThemeStorageKey = "softTrackAdminTheme";
 
 function getInitialAdminTheme() {
@@ -802,19 +799,6 @@ function applyAdminTheme(theme) {
 
   const isDark = theme === "dark";
 
-  adminThemeToggle.textContent = isDark
-    ? "☀️ Light Mode"
-    : "🌙 Dark Mode";
-
-  adminThemeToggle.setAttribute(
-    "aria-label",
-    isDark ? "Switch to light mode" : "Switch to dark mode"
-  );
-
-  adminThemeToggle.setAttribute(
-    "aria-pressed",
-    String(isDark)
-  );
   document.getElementById("adminLightMode")?.setAttribute("aria-pressed", String(!isDark));
   document.getElementById("adminDarkMode")?.setAttribute("aria-pressed", String(isDark));
 }
@@ -830,9 +814,6 @@ function saveAdminTheme(theme) {
   }
 }
 
-adminThemeToggle.addEventListener("click", () => {
-  saveAdminTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
-});
 document.getElementById("adminLightMode")?.addEventListener("click", () => saveAdminTheme("light"));
 document.getElementById("adminDarkMode")?.addEventListener("click", () => saveAdminTheme("dark"));
 

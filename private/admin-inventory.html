@@ -14,10 +14,17 @@
   
   <link rel="stylesheet" href="/admin.css">
 
+  <script src="/admin-navigation.js" defer></script>
   <script src="/admin.js" defer></script>
 </head>
 
 <body class="admin-page" data-admin-page="inventory">
+
+  <div class="admin-mobile-bar">
+    <button id="adminMenuToggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="adminSidebar">☰</button>
+    <strong>SoftTrack</strong>
+  </div>
+  <div id="adminSidebarOverlay" class="admin-sidebar-overlay" aria-hidden="true"></div>
 
   <aside class="admin-sidebar" id="adminSidebar">
 
@@ -47,16 +54,18 @@
     <a href="/admin/audit" data-admin-page="audit">
       <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span> Audit History</a>
 
-    <a href="/admin/settings" data-admin-page="settings">
-      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/></svg></span> Settings
-    </a>
+
 
   </nav>
 
   <div class="admin-sidebar-footer">
-    <span>● System Online</span>
+    <span><span class="admin-online-dot" aria-hidden="true"></span>System Online</span>
     <small>SoftTrack Version 3</small>
   </div>
+
+    <a href="/admin/settings" data-admin-page="settings" class="admin-settings-link">
+      <span class="admin-nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/></svg></span> Settings
+    </a>
 
 </aside>
 
@@ -70,16 +79,7 @@
     </div>
 
     <div class="admin-header-actions">
-  <button
-    id="adminThemeToggle"
-    type="button"
-    aria-label="Switch to dark mode"
-    aria-pressed="false"
-  >
-    🌙 Dark Mode
-  </button>
-
-  <span id="adminEmail">Verifying session...</span>
+<span id="adminEmail">Verifying session...</span>
 
       <a href="/" class="admin-link">
         Public Inventory

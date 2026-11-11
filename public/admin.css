@@ -8,8 +8,7 @@
 /* Page */
 
 .admin-sidebar-logo svg { display: block; width: 28px; height: 28px; }
-.admin-page .admin-sidebar-links a { display: flex; align-items: center; gap: 10px; }
-.admin-nav-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; }
+.admin-nav-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 23px; width: 23px; height: 20px; }
 .admin-nav-icon svg { display: block; width: 20px; height: 20px; }
 
 .admin-shortcuts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; margin-top: 20px; }
@@ -44,15 +43,17 @@ html {
   top: 0;
   left: 0;
   bottom: 0;
-  width: 250px;
+  width: 260px;
   box-sizing: border-box;
-  background: #14213d;
+  background: linear-gradient(165deg, #123a78 0%, #1759ad 55%, #1688e8 100%);
   color: white;
   display: flex;
   flex-direction: column;
-  padding: 28px 18px;
+  padding: 28px 15px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  line-height: 1.5;
 }
 
 .admin-sidebar[hidden] {
@@ -63,75 +64,96 @@ html {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 10px 30px;
-  border-bottom: 1px solid #334155;
+  padding: 5px 12px 35px;
 }
 
 .admin-sidebar-logo {
-  font-size: 32px;
-  color: #60a5fa;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  background: #2563eb;
+  border-radius: 12px;
 }
 
 .admin-sidebar-brand strong {
   display: block;
-  font-size: 20px;
+  font-size: 21px;
+  letter-spacing: -.5px;
 }
 
 .admin-sidebar-brand small {
   display: block;
   color: #94a3b8;
-  margin-top: 4px;
+  font-size: 11px;
 }
 
 .admin-sidebar-links {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 26px;
+  gap: 7px;
 }
 
-.admin-sidebar-links a {
-  display: block;
-  color: #cbd5e1;
+.admin-sidebar-links a,
+.admin-settings-link {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #a9bad2;
   text-decoration: none;
-  font-weight: 600;
-  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 550;
+  padding: 14px;
   border-radius: 10px;
   transition: background 0.2s, color 0.2s;
 }
 
 .admin-sidebar-links a:hover,
-.admin-sidebar-links a:focus-visible,
-.admin-sidebar-links a.active {
-  background: #2563eb;
+.admin-sidebar-links a:focus-visible {
+  background: #1e3354;
   color: white;
 }
 
-.admin-sidebar-links a:focus-visible {
+.admin-sidebar-links a.active,
+.admin-settings-link.active {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 12px #00000020;
+}
+
+.admin-sidebar a:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 2px;
 }
 
 .admin-sidebar-footer {
   margin-top: auto;
-  padding: 20px 10px 0;
+  padding: 18px 12px 5px;
+  border-top: 1px solid #ffffff20;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #86efac;
+  color: #cbd5e1;
   font-size: 13px;
 }
 
 .admin-sidebar-footer small {
   color: #94a3b8;
+  font-size: 11px;
 }
+
+.admin-online-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #22c55e; }
+.admin-settings-link { margin-top: 12px; padding: 12px 14px; color: white; background: #ffffff1f; }
+.admin-settings-link:hover, .admin-settings-link:focus-visible { background: #ffffff38; }
+.admin-mobile-bar, .admin-sidebar-overlay { display: none; }
 
 /* ==========================================
    ADMIN HEADER
    ========================================== */
 
 .admin-page .admin-header {
-  margin-left: 250px;
+  margin-left: 260px;
 }
 
 .admin-header {
@@ -208,7 +230,7 @@ html {
    ========================================== */
 
 .admin-page .admin-container {
-  margin-left: 250px;
+  margin-left: 260px;
   margin-right: auto;
   max-width: none;
   box-sizing: border-box;
@@ -466,30 +488,47 @@ html {
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .admin-sidebar {
-    position: relative;
-    width: 100%;
-    height: auto;
-    padding: 16px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
   }
 
-  .admin-sidebar-brand {
-    padding-bottom: 14px;
+  .admin-sidebar.open { transform: translateX(0); }
+
+  .admin-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #101d36;
+    color: white;
+    padding: 12px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 900;
   }
 
-  .admin-sidebar-links {
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding-top: 14px;
+  #adminMenuToggle {
+    border: 0;
+    border-radius: 9px;
+    background: #253b60;
+    color: white;
+    padding: 7px 13px;
+    font-size: 21px;
+    cursor: pointer;
   }
 
-  .admin-sidebar-links a {
-    padding: 10px 12px;
+  #adminMenuToggle:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
   }
 
-  .admin-sidebar-footer {
-    display: none;
+  .admin-sidebar-overlay.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #00000080;
+    z-index: 950;
   }
 
   .admin-page .admin-header,
@@ -540,7 +579,7 @@ html {
     scroll-behavior: auto;
   }
 
-  .admin-sidebar-links a {
+  .admin-sidebar, .admin-sidebar-links a, .admin-settings-link {
     transition: none;
   }
 }
@@ -563,28 +602,6 @@ html {
     background-color 0.2s ease,
     color 0.2s ease,
     border-color 0.2s ease;
-}
-
-/* Theme toggle button */
-
-#adminThemeToggle {
-  background: #334155;
-  color: #ffffff;
-  border: 1px solid #64748b;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-#adminThemeToggle:hover {
-  background: #475569;
-}
-
-#adminThemeToggle:focus-visible {
-  outline: 2px solid #93c5fd;
-  outline-offset: 3px;
 }
 
 /* ==========================================
@@ -652,10 +669,10 @@ html {
   color: #94a3b8;
 }
 
-/* Sidebar stays navy in both modes */
+/* Keep the public dashboard's ocean-blue sidebar in both themes. */
 
 .admin-page[data-theme="dark"] .admin-sidebar {
-  background: #0f172a;
+  background: linear-gradient(165deg, #123a78 0%, #1759ad 55%, #1688e8 100%);
 }
 
 /* Keep approval badges readable */
