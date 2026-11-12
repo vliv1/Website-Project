@@ -289,8 +289,9 @@ async function loadInventory() {
 
   // The async chart changes the height above Security Watch. Re-align a direct
   // CVE link once that layout is ready, keeping it below the mobile toolbar.
-  if (window.location.hash === "#cve") {
-    document.getElementById("cve")?.scrollIntoView({ block: "start" });
+  const cveSection = document.getElementById("cve");
+  if (cveSection && window.location.hash === "#cve") {
+    cveSection.scrollIntoView({ block: "start" });
   }
 
   // Render the table only on the Inventory page.
