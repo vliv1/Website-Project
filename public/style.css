@@ -977,3 +977,4 @@ html.dark-mode #emptyMessage {
     margin: 20px;
   }
 }
+.approval-notes { white-space: pre-wrap; overflow-wrap: anywhere; }

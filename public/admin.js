@@ -230,10 +230,26 @@ function createVersionEditor(version) {
   versionInput.value = version.number;
   versionInput.maxLength = 80;
   versionInput.required = true;
+  versionInput.id = `edit-version-${version.id}`;
+  versionLabel.htmlFor = versionInput.id;
 
   const statusLabel = makeElement("label", "Approval status");
 
   const statusSelect = document.createElement("select");
+  statusSelect.id = `edit-status-${version.id}`;
+  statusLabel.htmlFor = statusSelect.id;
+
+  const notesLabel = makeElement("label", "Approval / denial notes (optional)");
+  const notesInput = document.createElement("textarea");
+  notesInput.id = `edit-notes-${version.id}`;
+  notesLabel.htmlFor = notesInput.id;
+  notesInput.value = version.notes || "";
+  notesInput.maxLength = 2000;
+  notesInput.rows = 4;
+  notesInput.placeholder = "Explain the approval, denial, or pending review.";
+  const notesHelp = makeElement("p", "Visible to everyone viewing the inventory. Maximum 2,000 characters.", "admin-notes-help");
+  notesHelp.id = `edit-notes-help-${version.id}`;
+  notesInput.setAttribute("aria-describedby", notesHelp.id);
 
   ["Pending", "Approved", "Denied"].forEach(status => {
     const option = document.createElement("option");
@@ -265,6 +281,9 @@ function createVersionEditor(version) {
     versionInput,
     statusLabel,
     statusSelect,
+    notesLabel,
+    notesInput,
+    notesHelp,
     buttonRow,
     message
   );
@@ -278,6 +297,12 @@ function createVersionEditor(version) {
 
     const newVersion = versionInput.value.trim();
     const newStatus = statusSelect.value;
+    const newNotes = notesInput.value.trim();
+
+    if (notesInput.value.length > 2000) {
+      message.textContent = "Notes must be no more than 2,000 characters.";
+      return;
+    }
 
     if (!newVersion) {
       message.textContent = "Version number is required.";
@@ -286,7 +311,8 @@ function createVersionEditor(version) {
 
     if (
       newVersion === version.number &&
-      newStatus === version.status
+      newStatus === version.status &&
+      newNotes === (version.notes || "")
     ) {
       message.textContent = "No changes to save.";
       return;
@@ -307,7 +333,8 @@ function createVersionEditor(version) {
           },
           body: JSON.stringify({
             version: newVersion,
-            status: newStatus
+            status: newStatus,
+            notes: newNotes
           })
         }
       );
@@ -845,6 +872,7 @@ adminSoftwareForm?.addEventListener("submit", async (event) => {
 
   const status =
     document.getElementById("newStatus").value;
+  const notes = document.getElementById("newNotes")?.value.trim() || "";
 
   if (!name || !publisher || !version) {
     addSoftwareMessage.textContent =
@@ -866,7 +894,8 @@ adminSoftwareForm?.addEventListener("submit", async (event) => {
         name,
         publisher,
         version,
-        status
+        status,
+        notes
       })
     });
 
@@ -961,6 +990,8 @@ function renderAuditHistory(events) {
         ? "Software Group Deleted"
         : isVersionDeletion
           ? "Software Version Deleted"
+          : event.action === "version_updated" && event.old_version === event.new_version && event.old_notes !== event.new_notes
+            ? "Approval Notes Updated"
           : formatAuditAction(event.action)
     );
 
@@ -1001,6 +1032,17 @@ function renderAuditHistory(events) {
       publisher
     );
 
+    if (event.old_notes != null || event.new_notes != null) {
+      if (event.action !== "deleted" && event.old_notes !== event.new_notes && event.old_notes != null) {
+        card.appendChild(makeElement("p", `Previous notes: ${event.old_notes || "No notes"}`, "admin-audit-notes"));
+      }
+      card.appendChild(makeElement("p",
+        event.action === "deleted"
+          ? `Notes before deletion: ${event.old_notes || "No notes"}`
+          : `Notes: ${event.new_notes || "No notes"}`,
+        "admin-audit-notes"));
+    }
+
     // Software creation and approval status changes.
     if (
       event.action === "created" ||
@@ -1017,7 +1059,7 @@ function renderAuditHistory(events) {
     }
 
     // Software version number changes.
-    if (event.action === "version_updated") {
+    if (event.action === "version_updated" && event.old_version !== event.new_version) {
       const oldVersion =
         event.old_version || "Unknown";
 

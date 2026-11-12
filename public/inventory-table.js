@@ -134,6 +134,13 @@
         const statusCell = element("td");
         if (record.version) statusCell.appendChild(element("span", record.status, `inventory-status status-${record.status.toLowerCase()}`));
         else statusCell.textContent = "—";
+        if (record.version?.notes) {
+          const notes = element("details", "", "inventory-notes");
+          const toggle = element("summary", "View notes");
+          toggle.setAttribute("aria-label", `View notes for ${record.name}, version ${record.number}`);
+          notes.append(toggle, element("p", record.version.notes));
+          statusCell.appendChild(notes);
+        }
         row.appendChild(statusCell);
         if (createDetails) {
           const actions = element("td");

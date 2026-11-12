@@ -43,3 +43,16 @@ Retry to continue with the remaining rows. After signing in again, you can
 reselect the original CSV; existing versions will be skipped.
 
 Run the admin-page, CSV parsing, and import-flow tests with `npm test`.
+
+Approval / denial notes are optional and belong to an individual software version,
+so decisions for different releases can have different explanations. Administrators
+can add them on Add Software or Inventory → Manage → Edit. Everyone can read saved
+notes using View notes below the status in the inventory. Notes are plain text,
+limited to 2,000 characters, and changes are recorded with the administrator and
+timestamp in Audit History. Clearing the field removes the current note while
+retaining its audit history. Existing CSV imports continue to work without notes.
+
+Before starting a checkout with this feature for the first time, run `npm run migrate`
+with the usual `DATABASE_URL` configured, then restart `npm start`. The migration
+adds the notes and audit columns without changing existing versions or statuses;
+it can safely be run again. Use `npm test` for the complete test suite.

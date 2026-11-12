@@ -160,6 +160,12 @@
         } else {
           addText(card, "p", "Version: " + (record.number ?? "—"));
           addText(card, "p", "Status: " + record.status);
+          if (record.notes) {
+            const notes = document.createElement("p");
+            notes.className = "approval-notes";
+            notes.textContent = "Notes: " + record.notes;
+            card.appendChild(notes);
+          }
         }
         list.appendChild(card);
       }
@@ -178,7 +184,7 @@
           } else {
             for (const version of (item.versions || [])) {
               if (version.status === pageType) {
-                allRecords.push({name:item.name, publisher:item.publisher, number:version.number, status:version.status});
+                allRecords.push({name:item.name, publisher:item.publisher, number:version.number, status:version.status, notes:version.notes});
               }
             }
           }

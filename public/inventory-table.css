@@ -47,6 +47,10 @@ html.dark-mode .inventory-grid,
 .inventory-pagination span { color: var(--table-muted); }
 .inventory-table-empty { padding: 26px 16px; text-align: center; color: var(--table-muted); border: 1px dashed var(--table-border); border-radius: 12px; }
 .inventory-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 650; font-size: 12px; white-space: nowrap; }
+.inventory-notes { margin-top: 8px; font-weight: 400; }
+.inventory-notes summary { cursor: pointer; color: var(--table-text); white-space: nowrap; }
+.inventory-notes p { margin: 8px 0 0; min-width: 160px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.inventory-notes summary:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
 .inventory-grid .status-approved { background: #dcfce7; color: #166534; }
 .inventory-grid .status-pending { background: #fef3c7; color: #92400e; }
 .inventory-grid .status-denied { background: #fee2e2; color: #991b1b; }

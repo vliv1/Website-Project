@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "migrate": "node scripts/migrate.js",
     "test": "node --test tests/*.test.js",
     "start": "node server.js"
   },

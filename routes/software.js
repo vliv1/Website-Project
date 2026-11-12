@@ -18,6 +18,11 @@ function isValidText(value, max = 120) {
   );
 }
 
+function isValidNotes(value) {
+  return value === undefined || (typeof value === "string" &&
+    value.length <= 2000 && !value.includes("\u0000"));
+}
+
 function isUUID(value) {
   return (
     typeof value === "string" &&
@@ -80,6 +85,8 @@ async function recordApprovalEvent(client, {
   oldPublisher = null,
   newPublisher = null,
   deletedStatus = null,
+  oldNotes = null,
+  newNotes = null,
   action,
   adminId,
   adminEmail
@@ -101,11 +108,13 @@ async function recordApprovalEvent(client, {
       deleted_status,
       action,
       admin_id,
-      admin_email
+      admin_email,
+      old_notes,
+      new_notes
     )
     VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8,
-      $9, $10, $11, $12, $13, $14, $15, $16
+      $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
     )`,
     [
       softwareVersionId,
@@ -123,7 +132,9 @@ async function recordApprovalEvent(client, {
       deletedStatus,
       action,
       adminId,
-      adminEmail
+      adminEmail,
+      oldNotes,
+      newNotes
     ]
   );
 }
@@ -142,7 +153,8 @@ router.get("/", async (req, res) => {
             json_build_object(
               'id', v.id,
               'number', v.version,
-              'status', v.status
+              'status', v.status,
+              'notes', v.notes
             )
             ORDER BY v.version, v.id
           ) FILTER (WHERE v.id IS NOT NULL),
@@ -199,6 +211,8 @@ router.get("/audit", async (req, res) => {
      new_software_name,
      old_publisher,
      new_publisher,
+     old_notes,
+     new_notes,
      action,
      admin_email,
      created_at
@@ -226,7 +240,11 @@ router.get("/audit", async (req, res) => {
 
 // ADMIN: Add software or a new version.
 router.post("/", async (req, res) => {
-  const { name, publisher, version, status } = req.body || {};
+  const { name, publisher, version, status, notes } = req.body || {};
+
+  if (!isValidNotes(notes)) {
+    return res.status(400).json({ error: "Notes must be text of no more than 2,000 characters." });
+  }
 
   if (
     !isValidText(name) ||
@@ -321,20 +339,23 @@ router.post("/", async (req, res) => {
         id,
         software_id,
         version,
-        status
+        status,
+        notes
       )
       VALUES (
         gen_random_uuid(),
         $1,
         $2,
-        $3
+        $3,
+        $4
       )
       RETURNING
         id,
         software_id,
         version,
-        status`,
-      [softwareId, version.trim(), status]
+        status,
+        notes`,
+      [softwareId, version.trim(), status, (notes || "").trim()]
     );
 
     // Record who created the software version.
@@ -345,6 +366,7 @@ router.post("/", async (req, res) => {
       version: insertedVersion.rows[0].version,
       oldStatus: null,
       newStatus: insertedVersion.rows[0].status,
+      newNotes: insertedVersion.rows[0].notes,
       action: "created",
       adminId: req.session.adminId,
       adminEmail: req.session.adminEmail
@@ -493,7 +515,11 @@ router.patch("/:id", async (req, res) => {
  // ADMIN: Edit a version or its approval status.
 router.patch("/versions/:id", async (req, res) => {
   const { id } = req.params;
-  const { version, status } = req.body || {};
+  const { version, status, notes } = req.body || {};
+
+  if (!isValidNotes(notes)) {
+    return res.status(400).json({ error: "Notes must be text of no more than 2,000 characters." });
+  }
 
   if (
     !isUUID(id) ||
@@ -517,6 +543,7 @@ router.patch("/versions/:id", async (req, res) => {
          v.id,
          v.version,
          v.status,
+         v.notes,
          s.name AS software_name,
          s.publisher
        FROM software_versions v
@@ -536,6 +563,10 @@ router.patch("/versions/:id", async (req, res) => {
 
     const previous = existing.rows[0];
     const newVersion = version.trim();
+    // Older clients omit notes; preserve the stored explanation in that case.
+    const oldNotes = previous.notes || "";
+    const newNotes = notes === undefined ? oldNotes : notes.trim();
+    const notesChanged = oldNotes !== newNotes;
 
     const versionChanged =
       previous.version !== newVersion;
@@ -544,13 +575,14 @@ router.patch("/versions/:id", async (req, res) => {
       previous.status !== status;
 
     // Nothing changed.
-    if (!versionChanged && !statusChanged) {
+    if (!versionChanged && !statusChanged && !notesChanged) {
       await client.query("ROLLBACK");
 
       return res.json({
         id,
         version: previous.version,
         status: previous.status,
+        notes: oldNotes,
         unchanged: true
       });
     }
@@ -558,10 +590,11 @@ router.patch("/versions/:id", async (req, res) => {
     const updated = await client.query(
       `UPDATE software_versions
        SET version = $1,
-           status = $2
+           status = $2,
+           notes = $4
        WHERE id = $3
-       RETURNING id, software_id, version, status`,
-      [newVersion, status, id]
+       RETURNING id, software_id, version, status, notes`,
+      [newVersion, status, id, newNotes]
     );
 
     // Record changes before committing the transaction.
@@ -574,6 +607,8 @@ router.patch("/versions/:id", async (req, res) => {
         version: newVersion,
         oldStatus: previous.status,
         newStatus: status,
+        oldNotes,
+        newNotes,
         action: "status_changed",
         adminId: req.session.adminId,
         adminEmail: req.session.adminEmail
@@ -581,7 +616,7 @@ router.patch("/versions/:id", async (req, res) => {
     }
 
     
-if (versionChanged) {
+if (versionChanged || (notesChanged && !statusChanged)) {
   await recordApprovalEvent(client, {
     softwareVersionId: id,
     softwareName: previous.software_name,
@@ -591,6 +626,8 @@ if (versionChanged) {
     newStatus: status,
     oldVersion: previous.version,
     newVersion: newVersion,
+    oldNotes,
+    newNotes,
     action: "version_updated",
     adminId: req.session.adminId,
     adminEmail: req.session.adminEmail
@@ -650,6 +687,7 @@ router.delete("/versions/:id", async (req, res) => {
          v.id,
          v.version,
          v.status,
+         v.notes,
          s.name AS software_name,
          s.publisher
        FROM software_versions v
@@ -678,6 +716,7 @@ router.delete("/versions/:id", async (req, res) => {
       oldStatus: previous.status,
       newStatus: null,
       deletedStatus: previous.status,
+      oldNotes: previous.notes,
       action: "deleted",
       adminId: req.session.adminId,
       adminEmail: req.session.adminEmail
@@ -757,7 +796,7 @@ router.delete("/:id", async (req, res) => {
 
     // Read and lock all versions belonging to this group.
     const versionsResult = await client.query(
-      `SELECT id, version, status
+      `SELECT id, version, status, notes
        FROM software_versions
        WHERE software_id = $1
        ORDER BY id
@@ -777,6 +816,7 @@ router.delete("/:id", async (req, res) => {
         oldStatus: version.status,
         newStatus: null,
         deletedStatus: version.status,
+        oldNotes: version.notes,
         action: "deleted",
         adminId: req.session.adminId,
         adminEmail: req.session.adminEmail
