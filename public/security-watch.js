@@ -11,6 +11,7 @@
   if (!status || !results) return;
 
   let candidates = [];
+  let securityCheckedAt = null;
   const matchLabels = {
     affected: "Affected version match — NVD criteria",
     potential: "Potential match — manual review required",
@@ -135,6 +136,9 @@
 
       const data = await response.json();
 
+      securityCheckedAt = data.checkedAt || securityCheckedAt;
+      if (securityCheckedAt) setText("securityUpdated", displayDate(securityCheckedAt));
+
       candidates = Array.isArray(data.candidates)
         ? data.candidates
         : [];
@@ -183,7 +187,7 @@
       const data = await response.json();
 
       setText("inventoryUpdated", displayDate(data.inventoryUpdated));
-      setText("securityUpdated", displayDate(data.securityUpdated));
+      setText("securityUpdated", displayDate(securityCheckedAt || data.securityUpdated));
       setText("releaseUpdated", displayDate(data.releaseUpdated));
     } catch (error) {
       console.error("Last Updated timestamps failed:", error);
