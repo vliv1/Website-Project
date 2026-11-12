@@ -11,6 +11,16 @@
   if (!status || !results) return;
 
   let candidates = [];
+  const matchLabels = {
+    affected: "Affected version match — NVD criteria",
+    potential: "Potential match — manual review required",
+    not_established: "Not established as affected — not proof of safety"
+  };
+
+  function matchLabel(value) {
+    return Object.prototype.hasOwnProperty.call(matchLabels, value)
+      ? matchLabels[value] : matchLabels.potential;
+  }
 
   function displayDate(value) {
     if (!value) return "Unavailable";
@@ -48,7 +58,9 @@
     const query = (search?.value || "").trim().toLowerCase();
 
     const filtered = candidates.filter(item =>
-      [item.id, item.productSearch, item.description]
+      [item.id, item.productSearch, item.description, matchLabel(item.matchStatus),
+        ...(Array.isArray(item.versionResults) ? item.versionResults : [])
+          .map(result => `${result.version || "Unknown"} ${matchLabel(result.status)} ${result.reason || ""}`)]
         .some(value => String(value || "").toLowerCase().includes(query))
     );
 
@@ -56,7 +68,7 @@
 
     const summary = document.createElement("p");
     summary.textContent =
-      `Showing ${filtered.length} of ${candidates.length} potential CVE candidates.`;
+      `Showing ${filtered.length} of ${candidates.length} CVE candidates. Severity counters include all candidates, not confirmed vulnerabilities.`;
     results.appendChild(summary);
 
     for (const item of filtered) {
@@ -84,10 +96,29 @@
       description.textContent = item.description || "No description available.";
 
       const warning = document.createElement("small");
-      warning.textContent =
-        "Potential match only — product and version must be verified.";
+      warning.textContent = matchLabel(item.matchStatus) + ". " +
+        (item.matchStatus === "affected"
+          ? "At least one recorded version matches supported NVD criteria. This does not confirm exploitability; review each version below."
+          : item.matchStatus === "not_established"
+            ? "Evaluated versions fall outside the supported criteria. This is not proof of safety."
+            : "Product identity, version, or applicability still needs verification.");
 
       card.append(heading, meta, description, warning);
+      if (Array.isArray(item.versionResults) && item.versionResults.length) {
+        const versions = document.createElement("ul");
+        for (const result of item.versionResults) {
+          const version = document.createElement("li");
+          version.textContent = `Version ${result.version || "Unknown"}: ${matchLabel(result.status)}. ${result.reason || ""}`;
+          if (typeof result.evidence?.criteria === "string") {
+            const evidence = document.createElement("small");
+            evidence.style.display = "block";
+            evidence.textContent = `NVD CPE: ${result.evidence.criteria}`;
+            version.appendChild(evidence);
+          }
+          versions.appendChild(version);
+        }
+        card.appendChild(versions);
+      }
       results.appendChild(card);
     }
   }
@@ -126,6 +157,10 @@
       if (data.truncated) {
         status.textContent += " Coverage is limited.";
       }
+      if (data.nvdResultsTruncated) {
+        status.textContent += " NVD returned more CVEs than the 20-per-product search limit.";
+      }
+      if (data.coverageNote) status.textContent += ` ${data.coverageNote}`;
 
       if (data.scanning) {
         setTimeout(loadSecurityWatch, 10000);
