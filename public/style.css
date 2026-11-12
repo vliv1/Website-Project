@@ -978,6 +978,7 @@ html.dark-mode #emptyMessage {
   }
 }
 .approval-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+#cve { scroll-margin-top: 84px; }
 .cve-match-counts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 16px 0; }
 .cve-match-counts p { margin: 0; }
 .cve-match-counts strong { display: inline-block; margin-right: 6px; }

@@ -207,20 +207,23 @@ updateAppearanceButtons();
 
 
 function updateActiveNavigation() {
-  const currentSection = window.location.hash;
-
-  if (currentSection !== "#dashboard" &&
-      currentSection !== "#inventory") {
-    return;
-  }
+  const pathname = window.location.pathname;
+  const isDashboard = pathname === "/" || pathname === "/index.html";
+  const currentSection = isDashboard
+    ? window.location.hash === "#cve" ? "cve" : "dashboard"
+    : null;
 
   const links = document.querySelectorAll(
-    '.nav-links .nav-link[data-page]'
+    '.nav-link'
   );
 
   links.forEach(link => {
-    const isActive =
-      link.dataset.page === currentSection.substring(1);
+    const href = link.getAttribute("href");
+    const isActive = currentSection
+      ? currentSection === "cve"
+        ? link.dataset.page === "cve"
+        : link.dataset.page === "dashboard" || href === "/#dashboard"
+      : href === pathname;
 
     link.classList.toggle("active", isActive);
 
