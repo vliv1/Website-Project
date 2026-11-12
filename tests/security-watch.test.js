@@ -23,7 +23,7 @@ const orNode = matches => ({ operator: "OR", negate: false, cpeMatch: matches })
 const cve = (...matches) => ({ id: "CVE-2026-12345", configurations: [{ nodes: [orNode(matches)] }] });
 const fixture = cve(criterion({ versionStartIncluding: "1.0.0", versionEndExcluding: "2.0.0" }));
 
-function harness(products = [product()], getNvd = () => ({ vulnerabilities: [{ cve: fixture }], totalResults: 1 }), env = {}) {
+function harness(products = [product()], getNvd = () => ({ vulnerabilities: [{ cve: fixture }], totalResults: 1, startIndex: 0 }), env = {}, getDictionary = request => ({ products: [{ cpe: { deprecated: false, cpeName: request.url.searchParams.get("cpeMatchString") + ":*:*:*:*:*:*:*:*" } }] })) {
   let now = TTL + 1;
   let queryError = null;
   const queries = [], requests = [], delays = [], timers = [], errors = [];
@@ -54,12 +54,13 @@ function harness(products = [product()], getNvd = () => ({ vulnerabilities: [{ c
     async fetch(url, options) {
       const request = { url: new URL(url), options };
       requests.push(request);
-      const value = await getNvd(request, requests.length);
+      const value = await (request.url.pathname.includes("/cpes/") ? getDictionary : getNvd)(request, requests.length);
+      if (value.httpResponse) return value.httpResponse;
       return { ok: true, json: async () => value };
     }
   });
   vm.runInContext(backend, context);
-  const api = vm.runInContext("({matchCve, parseCpe23, compareVersions, startScan})", context);
+  const api = vm.runInContext("({matchCve, parseCpe23, compareVersions, startScan, resolveProduct})", context);
   async function endpoint(route) {
     let body;
     const headers = {};
@@ -175,61 +176,152 @@ test("matching: out-of-range plus unknown remains potential", () => {
   assert.equal(match(fixture, product(["2.0.0", "3.0.0"])).matchStatus, "not_established");
 });
 
-test("backend: cache, single-flight, rotation, legacy fields, UUID join, status, and limits", async () => {
-  const products = Array.from({ length: 5 }, (_, i) => product(["1.2.3", "2.0.0"], { name: `Widget${i}` }));
-  const h = harness(products, () => ({ totalResults: 21, vulnerabilities: [{ cve: fixture }, { cve: fixture }, { cve: { id: "invalid" } }] }), { NVD_API_KEY: "test-key", SOFTTRACK_RELEASE_AT: "2026-11-10T12:00:00Z" });
+test("backend: dictionary identity, complete paging, single-flight, caching and rotation", async () => {
+  const products = Array.from({ length: 5 }, (_, i) => product(["1.2.3", "2.0.0"], { id: `id-${i}`, name: `Widget${i}` }));
+  const h = harness(products, undefined, { NVD_API_KEY: "test-key", SOFTTRACK_RELEASE_AT: "2026-11-10T12:00:00Z" });
   const first = await h.endpoint("/cves");
   assert.equal(first.scanning, true);
   const flight = h.api.startScan();
   assert.equal(flight, h.api.startScan());
   await flight;
   const body = await h.endpoint("/cves");
-  for (const key of ["checkedAt", "candidates", "searched", "total", "truncated", "error", "checkedVersions", "totalProducts", "checkedProducts", "failedSearches", "batchStart", "scanning", "coverageNote", "note"]) assert.ok(key in body, key);
   assert.equal(body.searched, 4);
   assert.equal(body.checkedVersions, 8);
   assert.equal(body.total, 10);
-  assert.equal(body.totalProducts, 5);
-  assert.equal(body.candidates.length, 4, "dedup remains by CVE and productSearch");
-  for (const key of ["id", "severity", "productSearch", "description", "url", "classification"]) assert.ok(key in body.candidates[0], key);
-  assert.equal(body.nvdResultsTruncated, true);
-  assert.equal(body.truncated, true);
-  assert.deepEqual(h.delays, [1000, 1000, 1000]);
+  assert.equal(body.completeProducts, 4);
+  assert.equal(body.candidates.length, 4);
+  assert.equal(body.nvdResultsTruncated, false);
+  assert.equal(body.truncated, true, "one product is still outside this batch");
+  assert.deepEqual(h.delays, Array(7).fill(1000));
   assert.equal(h.timers[0].ms, 30 * 60 * 1000);
-  assert.equal(h.requests[0].url.searchParams.get("resultsPerPage"), "20");
-  assert.equal(h.requests[0].url.searchParams.get("keywordSearch"), "Acme Widget0");
-  assert.ok(h.requests[0].url.searchParams.has("noRejected"));
+  assert.equal(h.requests[0].url.searchParams.get("cpeMatchString"), "cpe:2.3:a:acme:widget0");
+  assert.equal(h.requests[1].url.searchParams.get("virtualMatchString"), "cpe:2.3:a:acme:widget0");
+  assert.equal(h.requests[1].url.searchParams.get("resultsPerPage"), "2000");
+  assert.ok(h.requests[1].url.searchParams.has("noRejected"));
+  assert.ok(h.requests.every(r => !r.url.searchParams.has("keywordSearch")));
   assert.equal(h.requests[0].options.headers.apiKey, "test-key");
-  assert.equal(h.requests.length, 4, "reads during TTL do not start extra requests");
+  assert.equal(h.requests.length, 8);
   const status = await h.endpoint("/status");
   assert.equal(status.checkedProducts, 4);
-  assert.equal(status.totalVersions, 10);
   assert.equal(status.releaseUpdated, "2026-11-10T12:00:00.000Z");
-  assert.equal(status.inventoryUpdated, "2026-11-11T12:00:00Z");
   h.advance(TTL + 1);
   await h.endpoint("/cves");
   await h.api.startScan();
-  const second = await h.endpoint("/cves");
-  assert.equal(second.batchStart, 4);
-  assert.equal(second.searched, 1);
+  assert.equal((await h.endpoint("/cves")).batchStart, 4);
   h.advance(TTL + 1);
-  await h.endpoint("/cves");
   await h.api.startScan();
   assert.equal((await h.endpoint("/cves")).batchStart, 0);
 });
-test("backend: failed product request does not stop other products", async () => {
-  const h = harness([product(), product(), product()], (_request, number) => {
-    if (number === 2) throw new Error("NVD HTTP 429");
-    return { vulnerabilities: [{ cve: fixture }] };
+
+function records(count, start = 0) {
+  return Array.from({ length: count }, (_, i) => ({ cve: { ...fixture, id: `CVE-2026-${10000 + start + i}`, published: i === count - 1 ? "2026-11-01T12:00:00Z" : "2026-01-01T12:00:00Z" } }));
+}
+
+test("backend: retrieves additional pages and sorts recent CVEs first", async () => {
+  const h = harness([product()], request => {
+    const start = Number(request.url.searchParams.get("startIndex"));
+    return { totalResults: 31, startIndex: start, vulnerabilities: start === 0 ? records(25) : records(6, 25) };
+  });
+  await h.api.startScan();
+  const body = await h.endpoint("/cves");
+  assert.equal(body.candidates.length, 31);
+  assert.equal(body.productResults[0].pages, 2);
+  assert.equal(body.productResults[0].status, "complete");
+  assert.equal(body.truncated, false);
+  assert.deepEqual(h.requests.slice(1).map(r => r.url.searchParams.get("startIndex")), ["0", "25"]);
+  assert.equal(body.candidates[0].published, "2026-11-01T12:00:00Z");
+  assert.deepEqual(h.delays, [6500, 6500]);
+});
+
+test("backend: ambiguous names, deprecated entries and unrelated dictionary records never become CVE queries", async () => {
+  for (const [inventory, dictionary] of [
+    [product([], { name: "Google", publisher: "Google" }), undefined],
+    [product(), () => ({ products: [] })],
+    [product(), () => ({ products: [{ cpe: { deprecated: true, cpeName: exact().criteria } }] })],
+    [product(), () => ({ products: [{ cpe: { deprecated: false, cpeName: exact("1", {}, { product: "other" }).criteria } }] })]
+  ]) {
+    const h = harness([inventory], undefined, {}, dictionary);
+    await h.api.startScan();
+    const body = await h.endpoint("/cves");
+    assert.equal(body.unresolvedProducts, 1);
+    assert.equal(body.candidates.length, 0);
+    assert.equal(body.truncated, true);
+    assert.ok(h.requests.every(r => r.url.pathname.includes("/cpes/")));
+  }
+});
+
+test("backend: publisher prefix is removed but punctuation remains in dictionary lookup", async () => {
+  const h = harness([product(["1.0"], { publisher: "Acme", name: "Acme C++" })]);
+  await h.api.startScan();
+  assert.equal(h.requests[0].url.searchParams.get("cpeMatchString"), String.raw`cpe:2.3:a:acme:c\+\+`);
+});
+
+test("backend: partial page failures preserve results and do not stop other products", async () => {
+  let calls = 0;
+  const h = harness([product(), product()], () => {
+    calls++;
+    if (calls === 2) throw new Error("Network unavailable");
+    return { totalResults: calls === 1 ? 3 : 1, startIndex: 0, vulnerabilities: records(1) };
   });
   await h.api.startScan();
   const body = await h.endpoint("/cves");
   assert.equal(body.failedSearches, 1);
   assert.equal(body.searched, 2);
-  assert.equal(body.checkedVersions, 2);
+  assert.equal(body.candidates.length, 2);
+  assert.equal(body.productResults[0].status, "failed");
+  assert.equal(body.productResults[1].status, "complete");
   assert.equal(body.truncated, true);
-  assert.match(body.error, /incomplete/);
-  assert.deepEqual(h.delays, [6500, 6500]);
 });
+
+test("backend: retries rate limits with Retry-After and bounded attempts", async () => {
+  let calls = 0;
+  const h = harness([product()], () => ++calls === 1
+    ? { httpResponse: { ok: false, status: 429, headers: { get: () => "20" } } }
+    : { totalResults: 1, startIndex: 0, vulnerabilities: records(1) });
+  await h.api.startScan();
+  assert.equal((await h.endpoint("/cves")).failedSearches, 0);
+  assert.deepEqual(h.delays, [6500, 20000]);
+  let failedCalls = 0;
+  const failure = harness([product()], () => { failedCalls++; return { httpResponse: { ok: false, status: 503 } }; });
+  await failure.api.startScan();
+  assert.equal(failedCalls, 3);
+  assert.equal((await failure.endpoint("/cves")).failedSearches, 1);
+});
+
+test("backend: page limits, invalid metadata and repeated pages never claim full coverage", async () => {
+  const capped = harness([product()], r => {
+    const start = Number(r.url.searchParams.get("startIndex"));
+    return { totalResults: 11, startIndex: start, vulnerabilities: records(1, start) };
+  });
+  await capped.api.startScan();
+  const body = await capped.endpoint("/cves");
+  assert.equal(body.productResults[0].pages, 10);
+  assert.equal(body.productResults[0].status, "limited");
+  assert.equal(body.nvdResultsTruncated, true);
+  for (const response of [
+    () => ({ vulnerabilities: records(1), totalResults: null, startIndex: 0 }),
+    () => ({ vulnerabilities: records(1), totalResults: 5, startIndex: 100 }),
+    r => ({ vulnerabilities: records(1), totalResults: 5, startIndex: Number(r.url.searchParams.get("startIndex")) })
+  ]) {
+    const h = harness([product()], response);
+    await h.api.startScan();
+    const result = await h.endpoint("/cves");
+    assert.equal(result.failedSearches, 1);
+    assert.equal(result.truncated, true);
+    assert.ok(h.requests.length <= 3);
+  }
+});
+
+test("backend: empty inventory and zero CVEs are distinct from unresolved identity", async () => {
+  const empty = harness([]);
+  await empty.api.startScan();
+  assert.equal((await empty.endpoint("/cves")).truncated, false);
+  assert.equal(empty.requests.length, 0);
+  const noCves = harness([product()], () => ({ totalResults: 0, startIndex: 0, vulnerabilities: [] }));
+  await noCves.api.startScan();
+  assert.equal((await noCves.endpoint("/cves")).productResults[0].status, "complete");
+});
+
 test("backend: fatal DB failure preserves cached data and timestamps", async () => {
   const h = harness();
   await h.api.startScan();
@@ -243,20 +335,6 @@ test("backend: fatal DB failure preserves cached data and timestamps", async () 
   assert.match(after.error, /stale or incomplete/);
   assert.equal(after.scanning, false);
 });
-test("backend: empty inventory and NVD page limit are reported accurately", async () => {
-  const empty = harness([]);
-  await empty.api.startScan();
-  const body = await empty.endpoint("/cves");
-  assert.equal(body.total, 0);
-  assert.equal(body.truncated, false);
-  assert.equal(empty.requests.length, 0);
-  const capped = harness([product()], () => ({ totalResults: 21, vulnerabilities: [{ cve: fixture }] }));
-  await capped.api.startScan();
-  const capBody = await capped.endpoint("/cves");
-  assert.equal(capBody.checkedVersions, capBody.total);
-  assert.equal(capBody.nvdResultsTruncated, true);
-  assert.equal(capBody.truncated, true);
-});
 
 class Element {
   constructor(tag = "div") { this.tag = tag; this.children = []; this.style = {}; this.listeners = {}; this.value = ""; this._text = ""; }
@@ -269,7 +347,7 @@ class Element {
   addEventListener(name, listener) { this.listeners[name] = listener; }
 }
 async function browser(data, error = false) {
-  const elements = new Map(["cveScanStatus", "cveResults", "cveSearch", "cveCritical", "cveHigh", "cveMedium", "cveLow", "inventoryUpdated", "securityUpdated", "releaseUpdated"].map(id => [id, new Element()]));
+  const elements = new Map(["cveScanStatus", "cveResults", "cveSearch", "cveCritical", "cveHigh", "cveMedium", "cveLow", "inventoryUpdated", "securityUpdated", "releaseUpdated", "cveMatchFilter", "cveAffected", "cveReview", "cveNotEstablished", "cveProductCoverage", "cvePrevious", "cveNext", "cvePageLabel"].map(id => [id, new Element()]));
   const timers = [], requests = [], created = [];
   vm.runInNewContext(frontend, {
     document: {
@@ -304,7 +382,7 @@ test("frontend: mixed labels, version details, counters, search, and timestamp u
   assert.match(results.textContent, /Version 2.0.0/);
   assert.match(results.textContent, /NVD CPE:/);
   assert.match(results.textContent, /not confirmed vulnerabilities/);
-  assert.match(h.elements.get("cveScanStatus").textContent, /20-per-product/);
+  assert.match(h.elements.get("cveScanStatus").textContent, /could not be fully retrieved/);
   assert.match(h.elements.get("cveScanStatus").textContent, /Batch coverage/);
   assert.notEqual(h.elements.get("inventoryUpdated").textContent, "Unavailable");
   assert.equal(h.elements.get("releaseUpdated").textContent, "Unavailable");
@@ -349,4 +427,46 @@ test("frontend: completed polling refreshes the sidebar security timestamp", asy
   assert.notEqual(after, before);
   assert.equal(after, new Date(data.checkedAt).toLocaleString());
   assert.match(h.elements.get("cveScanStatus").textContent, /Last completed scan:/);
+});
+
+test("frontend: classification counts, filters and pagination remain separate from severity counts", async () => {
+  const candidates = records(61).map((item, i) => ({ ...item.cve, severity: "HIGH", productSearch: "Acme Widget", matchStatus: i < 30 ? "affected" : i < 60 ? "potential" : "not_established" }));
+  const h = await browser({ candidates });
+  const el = id => h.elements.get(id);
+  const articles = () => el("cveResults").children.filter(child => child.tag === "article");
+  assert.equal(articles().length, 25);
+  assert.equal(el("cveAffected").textContent, "30");
+  assert.equal(el("cveReview").textContent, "30");
+  assert.equal(el("cveNotEstablished").textContent, "1");
+  assert.equal(el("cvePageLabel").textContent, "Page 1 of 3");
+  el("cveNext").listeners.click();
+  assert.equal(el("cvePageLabel").textContent, "Page 2 of 3");
+  el("cveMatchFilter").value = "affected";
+  el("cveMatchFilter").listeners.change();
+  assert.equal(el("cvePageLabel").textContent, "Page 1 of 2");
+  el("cveNext").listeners.click();
+  assert.equal(articles().length, 5);
+  assert.equal(el("cveNext").disabled, true);
+  el("cveSearch").value = "10001";
+  el("cveSearch").listeners.input();
+  assert.equal(articles().length, 1);
+  assert.equal(el("cvePageLabel").textContent, "Page 1 of 1");
+  assert.equal(el("cveHigh").textContent, "61", "severity counts cover the entire batch");
+  el("cveSearch").value = "missing";
+  el("cveSearch").listeners.input();
+  assert.equal(articles().length, 0);
+  assert.equal(el("cvePrevious").disabled, true);
+  assert.equal(el("cveNext").disabled, true);
+});
+
+test("frontend: product identification failures and partial coverage are visible as safe text", async () => {
+  const h = await browser({ candidates: [], productResults: [
+    { name: "Google", publisher: "Google", status: "unresolved", message: "Check the product name." },
+    { name: "<script>literal</script>", publisher: "Vendor", status: "failed", criteria: "cpe:2.3:a:acme:widget", totalCves: 31, fetchedCves: 25, pages: 1, message: "Page failed; partial results retained." }
+  ] });
+  const coverage = h.elements.get("cveProductCoverage").textContent;
+  assert.match(coverage, /Needs product identification/);
+  assert.match(coverage, /25 of 31 CVEs retrieved/);
+  assert.match(coverage, /<script>literal<\/script>/);
+  assert.ok(!h.created.some(element => element.tag === "script"));
 });

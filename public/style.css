@@ -978,3 +978,17 @@ html.dark-mode #emptyMessage {
   }
 }
 .approval-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cve-match-counts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 16px 0; }
+.cve-match-counts p { margin: 0; }
+.cve-match-counts strong { display: inline-block; margin-right: 6px; }
+.cve-coverage { margin: 16px 0 24px; }
+.cve-coverage summary { cursor: pointer; font-weight: 600; }
+.cve-product { padding: 12px 0; border-bottom: 1px solid #8885; overflow-wrap: anywhere; }
+.cve-product p { margin: 6px 0; }
+.cve-match-filter { display: block; width: 100%; box-sizing: border-box; padding: 10px; margin: 8px 0 16px; border: 1px solid #888; border-radius: 8px; background: var(--card-bg, transparent); color: inherit; font: inherit; }
+.cve-pagination { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.cve-pagination button { padding: 8px 12px; border: 1px solid #888; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.cve-pagination button:disabled { opacity: .5; cursor: not-allowed; }
+.cve-record { padding: 14px; margin-bottom: 12px; border: 1px solid #8885; border-radius: 10px; overflow-wrap: anywhere; }
+.cve-record li { margin: 10px 0; }
+.cve-evidence { display: block; margin-top: 4px; overflow-wrap: anywhere; }

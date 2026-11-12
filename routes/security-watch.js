@@ -6,16 +6,45 @@ const router = express.Router();
 const TTL = 6 * 60 * 60 * 1000;
 const BATCH_SIZE = 4; // One bounded batch per scan; rotate to the next products next time.
 const NVD_DELAY_MS = process.env.NVD_API_KEY ? 1000 : 6500;
+const CVE_PAGE_SIZE = 2000;
+const MAX_CVE_PAGES = 10;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let cache = {
   checkedAt: null, candidates: [], searched: 0, total: 0,
   truncated: false, error: null, checkedVersions: 0,
   totalProducts: 0, checkedProducts: 0, failedSearches: 0,
-  batchStart: 0
+  batchStart: 0, productResults: [], unresolvedProducts: 0, completeProducts: 0
 };
 let running = null;
 let lastAttempt = 0;
 let nextOffset = 0;
+let requestedNvd = false;
+let progress = null;
+
+// All dictionary requests, CVE pages and retries share the same pacing.
+async function requestNvd(endpoint, parameters) {
+  const url = new URL(`https://services.nvd.nist.gov/rest/json/${endpoint}/2.0`);
+  for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value));
+  let delay = NVD_DELAY_MS;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (requestedNvd) await sleep(delay);
+    requestedNvd = true;
+    const headers = { "User-Agent": "SoftTrack-SecurityWatch/2.0" };
+    if (process.env.NVD_API_KEY) headers.apiKey = process.env.NVD_API_KEY;
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+    if ([429, 502, 503, 504].includes(response.status) && attempt < 2) {
+      const retryAfter = response.headers?.get("retry-after");
+      const seconds = retryAfter && /^\d+$/.test(retryAfter)
+        ? Number(retryAfter) : (Date.parse(retryAfter) - Date.now()) / 1000;
+      delay = Math.max(NVD_DELAY_MS * (attempt + 2), Number.isFinite(seconds) ? seconds * 1000 : 0);
+      // Do not retry earlier than a long server-requested cooldown.
+      if (delay > 60000) throw new Error("NVD requested a longer cooldown; try again after the next scan interval");
+      continue;
+    }
+    if (!response.ok) throw new Error(`NVD HTTP ${response.status}`);
+    return response.json();
+  }
+}
 
 async function inventoryTimestamp() {
   const result = await pool.query("SELECT MAX(created_at) AS updated_at FROM softtrack_audit_events");
@@ -246,9 +275,27 @@ function matchCve(cve, product) {
   };
 }
 
+// Verify a literal application family in the dictionary before requesting CVEs.
+// Display-name normalization never guesses publisher aliases or product synonyms.
+async function resolveProduct(product) {
+  const publisher = identityKey(product.publisher);
+  let name = identityKey(product.name);
+  if (name.startsWith(`${publisher} `)) name = name.slice(publisher.length + 1);
+  if (!publisher || !name || name === publisher) return null;
+  const encode = value => value.replace(/ /g, "_").replace(/[^a-z0-9_.-]/g, char => "\\" + char);
+  const prefix = `cpe:2.3:a:${encode(publisher)}:${encode(name)}`;
+  const json = await requestNvd("cpes", { cpeMatchString: prefix, resultsPerPage: 100, startIndex: 0 });
+  if (!Array.isArray(json.products)) throw new Error("Invalid NVD dictionary response");
+  const entry = json.products.find(item => {
+    const fields = parseCpe23(item?.cpe?.cpeName);
+    return item?.cpe?.deprecated === false && fields?.[0] === "a" &&
+      identityMatches(product, fields) === true &&
+      `cpe:2.3:${fields.slice(0, 3).join(":")}` === prefix;
+  });
+  return entry ? { criteria: prefix, dictionaryName: entry.cpe.cpeName } : null;
+}
+
 async function scan() {
-  // Count all versions, then select a bounded batch of distinct software products.
-  // No database records are modified by this scan.
   const [versionCount, productCount] = await Promise.all([
     pool.query("SELECT COUNT(*)::int AS total FROM software_versions"),
     pool.query(`SELECT COUNT(*)::int AS total FROM software s
@@ -264,62 +311,88 @@ async function scan() {
     ORDER BY lower(s.name), lower(s.publisher), s.id
     LIMIT $1 OFFSET $2`, [BATCH_SIZE, offset]);
 
-  const candidates = [];
-  let searched = 0;
-  let checkedVersions = 0;
-  let failedSearches = 0;
-  let nvdResultsTruncated = false;
-  const errors = [];
-
-  for (let i = 0; i < data.rows.length; i++) {
-    if (i) await sleep(NVD_DELAY_MS);
-    const product = data.rows[i];
+  const candidates = [], productResults = [];
+  let searched = 0, checkedVersions = 0, failedSearches = 0;
+  for (const product of data.rows) {
     const term = `${product.publisher || ""} ${product.name || ""}`.trim();
-    if (!term) { failedSearches++; errors.push("Missing product name"); continue; }
+    const report = {
+      softwareId: product.id, name: product.name, publisher: product.publisher,
+      versionCount: product.version_count, status: "unresolved", criteria: null,
+      fetchedCves: 0, totalCves: null, pages: 0, message: ""
+    };
+    productResults.push(report);
+    progress = { product: term, phase: "Identifying product", fetchedCves: 0, totalCves: null };
     try {
-      const url = new URL("https://services.nvd.nist.gov/rest/json/cves/2.0");
-      url.searchParams.set("keywordSearch", term);
-      url.searchParams.set("resultsPerPage", "20");
-      url.searchParams.set("noRejected", "");
-      const headers = { "User-Agent": "SoftTrack-SecurityWatch/1.0" };
-      if (process.env.NVD_API_KEY) headers.apiKey = process.env.NVD_API_KEY;
-      const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-      if (!response.ok) throw new Error(`NVD HTTP ${response.status}`);
-      const json = await response.json();
-      if (!Array.isArray(json.vulnerabilities)) throw new Error("Invalid NVD response");
-      if (Number(json.totalResults) > json.vulnerabilities.length) nvdResultsTruncated = true;
-      searched++;
-      checkedVersions += product.version_count;
-      for (const item of json.vulnerabilities) {
-        const cve = item?.cve;
-        if (!/^CVE-\d{4}-\d{4,}$/.test(cve?.id || "")) continue;
-        candidates.push({
-          id: cve.id, severity: severityOf(cve), productSearch: term,
-          description: (cve.descriptions || []).find(d => d.lang === "en")?.value?.slice(0, 360) || "",
-          url: `https://nvd.nist.gov/vuln/detail/${cve.id}`,
-          ...matchCve(cve, product)
-        });
+      const identity = await resolveProduct(product);
+      if (!identity) {
+        report.message = "No active exact application identity was verified in the NVD dictionary lookup. Ask an administrator to check the software name and publisher. This product has not been checked for CVEs.";
+        continue;
       }
+      report.criteria = identity.criteria;
+      report.status = "limited";
+      const seen = new Set();
+      let startIndex = 0;
+      for (let page = 0; page < MAX_CVE_PAGES; page++) {
+        progress = { product: term, phase: "Reading CVEs", page: page + 1, fetchedCves: report.fetchedCves, totalCves: report.totalCves };
+        const json = await requestNvd("cves", {
+          virtualMatchString: identity.criteria, resultsPerPage: CVE_PAGE_SIZE, startIndex, noRejected: ""
+        });
+        if (!Array.isArray(json.vulnerabilities) || !Number.isSafeInteger(json.totalResults) ||
+            json.totalResults < 0 || json.startIndex !== startIndex) {
+          throw new Error("Invalid NVD pagination response");
+        }
+        if (!report.pages) { searched++; checkedVersions += product.version_count; }
+        report.pages++;
+        report.totalCves = json.totalResults;
+        const before = seen.size;
+        for (const item of json.vulnerabilities) {
+          const cve = item?.cve;
+          if (!/^CVE-\d{4}-\d{4,}$/.test(cve?.id || "")) throw new Error("Invalid CVE record in NVD response");
+          if (seen.has(cve.id)) continue;
+          seen.add(cve.id);
+          report.fetchedCves = seen.size;
+          if (cve.vulnStatus === "Rejected") continue;
+          candidates.push({
+            id: cve.id, softwareId: product.id, severity: severityOf(cve), productSearch: term,
+            productIdentity: identity.criteria,
+            published: cve.published || null,
+            description: (cve.descriptions || []).find(d => d.lang === "en")?.value?.slice(0, 360) || "",
+            url: `https://nvd.nist.gov/vuln/detail/${cve.id}`,
+            ...matchCve(cve, product)
+          });
+        }
+        startIndex += json.vulnerabilities.length;
+        if (startIndex >= json.totalResults) {
+          report.status = seen.size >= json.totalResults ? "complete" : "limited";
+          break;
+        }
+        if (seen.size === before) throw new Error("NVD pagination stopped making progress");
+      }
+      report.message = report.status === "complete"
+        ? "All pages returned for this exact product search were evaluated. Records without NVD product mappings may still be missing."
+        : "Only part of the product history was retrieved; the scan limit or overlapping NVD pages prevented full coverage.";
     } catch (error) {
       failedSearches++;
-      errors.push(`${term}: ${error.message}`);
+      report.status = "failed";
+      report.message = `${error.message}. Retrieved results are retained, but coverage is incomplete.`;
       console.error("Security Watch NVD search failed:", term, error.message);
     }
   }
 
-  const deduped = [...new Map(candidates.map(x => [x.id + "|" + x.productSearch, x])).values()];
-  const truncated = checkedVersions < total || failedSearches > 0 || nvdResultsTruncated;
-  const error = failedSearches ? `${failedSearches} NVD product search(es) failed; results are incomplete` : null;
-  // Advance only after processing this batch. A failed search is retried when the rotation returns.
+  // Prefer recent disclosures. Each product retains its own version assessment.
+  candidates.sort((a, b) => (Date.parse(b.published) || 0) - (Date.parse(a.published) || 0) || a.id.localeCompare(b.id));
+  const unresolvedProducts = productResults.filter(p => p.status === "unresolved").length;
+  const completeProducts = productResults.filter(p => p.status === "complete").length;
+  const nvdResultsTruncated = productResults.some(p => p.status === "limited" || p.status === "failed");
+  const truncated = completeProducts < totalProducts;
   nextOffset = totalProducts ? (offset + data.rows.length) % totalProducts : 0;
   cache = {
-    checkedAt: new Date().toISOString(), candidates: deduped,
-    searched, total, truncated, error, checkedVersions,
-    totalProducts, checkedProducts: searched, failedSearches,
-    batchStart: offset,
-    nvdResultsTruncated,
-    // checkedVersions counts included rows, not verified affected versions.
-    coverageNote: `This scan searched ${searched} of ${totalProducts} software products and included ${checkedVersions} of ${total} inventory versions. Each scan covers one rotating batch.`,
+    checkedAt: new Date().toISOString(), candidates, searched, total, truncated,
+    error: failedSearches ? `${failedSearches} NVD product search(es) failed; results are incomplete` : null,
+    checkedVersions, totalProducts, checkedProducts: searched, failedSearches,
+    batchStart: offset, nvdResultsTruncated, productResults, unresolvedProducts, completeProducts,
+    cvePageSize: CVE_PAGE_SIZE, maxCvePages: MAX_CVE_PAGES,
+    coverageNote: `This batch searched ${searched} of ${totalProducts} software products and included ${checkedVersions} of ${total} inventory versions. ${completeProducts} products have all returned CVE pages; ${unresolvedProducts} need product identification. Each scan covers one rotating batch of up to ${BATCH_SIZE} products.`,
   };
 }
 
@@ -329,7 +402,7 @@ function startScan() {
   running = scan().catch(error => {
     console.error("Security Watch scan failed:", error.message);
     cache.error = "NVD scan failed; results may be stale or incomplete";
-  }).finally(() => { running = null; });
+  }).finally(() => { running = null; progress = null; });
   return running;
 }
 
@@ -353,8 +426,8 @@ router.get("/status", async (_req, res) => {
 router.get("/cves", (_req, res) => {
   res.set("Cache-Control", "no-store");
   if (!running && Date.now() - lastAttempt > TTL) startScan();
-  res.json({ ...cache, scanning: !!running,
-    note: "Keyword search discovers candidates. Affected version match means an exact vendor/product identity and recorded version satisfy supported NVD CPE criteria, not confirmed exploitability. Uncertain matches require manual review. Not established as affected is not proof of safety. Results cover one rotating batch, at most 20 CVEs per product, and may omit vulnerabilities." });
+  res.json({ ...cache, scanning: !!running, progress,
+    note: "Product identities are checked against the NVD dictionary before CVEs are retrieved by CPE family. Affected version match means recorded versions satisfy supported NVD criteria, not confirmed exploitability. Uncertain matches require review. Not established as affected is not proof of safety. Scans cover one rotating batch, up to 20,000 CVEs per product, and may omit records without NVD product mappings." });
 });
 
 const timer = setInterval(() => {

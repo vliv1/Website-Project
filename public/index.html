@@ -167,10 +167,31 @@
           <div class="card"><h2 id="cveMedium">—</h2><p>Medium candidates</p></div>
           <div class="card"><h2 id="cveLow">—</h2><p>Low candidates</p></div>
         </div>
+        <div class="cve-match-counts" aria-label="CVE matching results">
+          <p><strong id="cveAffected">—</strong> Affected version matches</p>
+          <p><strong id="cveReview">—</strong> Need review</p>
+          <p><strong id="cveNotEstablished">—</strong> Not established as affected</p>
+        </div>
+        <details class="cve-coverage">
+          <summary>Product identification and scan coverage</summary>
+          <div id="cveProductCoverage"></div>
+        </details>
+        <label for="cveMatchFilter">Match result</label>
+        <select id="cveMatchFilter" class="cve-match-filter">
+          <option value="all">All results</option>
+          <option value="affected">Affected version matches</option>
+          <option value="potential">Needs review</option>
+          <option value="not_established">Not established as affected</option>
+        </select>
         <label for="cveSearch">Search CVE results</label>
         <input id="cveSearch" type="search" placeholder="Search CVE ID, product, or description" style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;border:1px solid #888;border-radius:8px;background:transparent;color:inherit">
         <div id="cveResults" aria-live="polite"></div>
-        <p class="help-text">Counts reflect only returned keyword-search candidates. No result is proof of an affected installation, and zero results does not mean safe.</p>
+        <nav class="cve-pagination" aria-label="CVE result pages">
+          <button id="cvePrevious" type="button" disabled>Previous</button>
+          <span id="cvePageLabel">Page 1 of 1</span>
+          <button id="cveNext" type="button" disabled>Next</button>
+        </nav>
+        <p class="help-text">Counts represent product/CVE pairs in this batch. Results are ordered by publication date, newest first. Exact product searches may omit CVEs awaiting NVD product mappings. No result confirms exploitability, and zero results does not mean safe.</p>
       </section>
     </main>
   </div>

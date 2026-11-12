@@ -7,6 +7,10 @@
   const status = byId("cveScanStatus");
   const results = byId("cveResults");
   const search = byId("cveSearch");
+  const matchFilter = byId("cveMatchFilter");
+  const previous = byId("cvePrevious"), next = byId("cveNext");
+  const PAGE_SIZE = 25;
+  let page = 1;
 
   if (!status || !results) return;
 
@@ -53,12 +57,43 @@
     setText("cveHigh", counts.HIGH);
     setText("cveMedium", counts.MEDIUM);
     setText("cveLow", counts.LOW);
+    setText("cveAffected", items.filter(item => item.matchStatus === "affected").length);
+    setText("cveNotEstablished", items.filter(item => item.matchStatus === "not_established").length);
+    setText("cveReview", items.filter(item => !["affected", "not_established"].includes(item.matchStatus)).length);
+  }
+
+  function renderCoverage(products) {
+    const container = byId("cveProductCoverage");
+    if (!container) return;
+    container.replaceChildren();
+    if (!Array.isArray(products) || !products.length) {
+      container.textContent = "Product coverage will appear after a scan completes.";
+      return;
+    }
+    const labels = { complete: "All returned pages checked", limited: "Partial coverage", failed: "Scan incomplete", unresolved: "Needs product identification" };
+    for (const product of products) {
+      const entry = document.createElement("div");
+      entry.className = "cve-product";
+      const heading = document.createElement("strong");
+      heading.textContent = `${product.name} (${product.publisher}) — ${labels[product.status] || "Needs review"}`;
+      const description = document.createElement("p");
+      description.textContent = product.message || "";
+      entry.append(heading, description);
+      if (product.criteria) {
+        const coverage = document.createElement("p");
+        coverage.textContent = `${product.fetchedCves || 0} of ${product.totalCves ?? "unknown"} CVEs retrieved across ${product.pages || 0} pages. Product identity: ${product.criteria}`;
+        entry.appendChild(coverage);
+      }
+      container.appendChild(entry);
+    }
   }
 
   function renderResults() {
     const query = (search?.value || "").trim().toLowerCase();
 
+    const selected = matchFilter?.value || "all";
     const filtered = candidates.filter(item =>
+      (selected === "all" || selected === (item.matchStatus || "potential")) &&
       [item.id, item.productSearch, item.description, matchLabel(item.matchStatus),
         ...(Array.isArray(item.versionResults) ? item.versionResults : [])
           .map(result => `${result.version || "Unknown"} ${matchLabel(result.status)} ${result.reason || ""}`)]
@@ -67,17 +102,22 @@
 
     results.replaceChildren();
 
+    const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    page = Math.min(page, pages);
+    const start = (page - 1) * PAGE_SIZE;
+    const visible = filtered.slice(start, start + PAGE_SIZE);
+    if (previous) previous.disabled = page <= 1;
+    if (next) next.disabled = page >= pages;
+    setText("cvePageLabel", `Page ${page} of ${pages}`);
+
     const summary = document.createElement("p");
     summary.textContent =
-      `Showing ${filtered.length} of ${candidates.length} CVE candidates. Severity counters include all candidates, not confirmed vulnerabilities.`;
+      `Showing ${filtered.length ? start + 1 : 0}–${start + visible.length} of ${filtered.length} matching results (${candidates.length} product/CVE pairs in this batch). Severity counters include all results, not confirmed vulnerabilities.`;
     results.appendChild(summary);
 
-    for (const item of filtered) {
+    for (const item of visible) {
       const card = document.createElement("article");
-      card.style.padding = "14px";
-      card.style.marginBottom = "12px";
-      card.style.border = "1px solid #8885";
-      card.style.borderRadius = "10px";
+      card.className = "cve-record";
 
       const heading = document.createElement("h3");
       const link = document.createElement("a");
@@ -91,7 +131,8 @@
 
       const meta = document.createElement("p");
       meta.textContent =
-        `${item.severity || "UNKNOWN"} | Search: ${item.productSearch || "Unknown"}`;
+        `${item.severity || "UNKNOWN"} | Product: ${item.productSearch || "Unknown"}` +
+        (item.published ? ` | Published: ${displayDate(item.published)}` : "");
 
       const description = document.createElement("p");
       description.textContent = item.description || "No description available.";
@@ -112,8 +153,11 @@
           version.textContent = `Version ${result.version || "Unknown"}: ${matchLabel(result.status)}. ${result.reason || ""}`;
           if (typeof result.evidence?.criteria === "string") {
             const evidence = document.createElement("small");
-            evidence.style.display = "block";
+            evidence.className = "cve-evidence";
             evidence.textContent = `NVD CPE: ${result.evidence.criteria}`;
+            for (const [key, label] of Object.entries({ versionStartIncluding: "From (inclusive)", versionStartExcluding: "After (exclusive)", versionEndIncluding: "Through (inclusive)", versionEndExcluding: "Before (exclusive)" })) {
+              if (result.evidence[key] != null) evidence.textContent += ` · ${label}: ${result.evidence[key]}`;
+            }
             version.appendChild(evidence);
           }
           versions.appendChild(version);
@@ -144,11 +188,13 @@
         : [];
 
       updateCounts(candidates);
+      renderCoverage(data.productResults);
       renderResults();
 
       if (data.scanning) {
         status.textContent =
           `Security scan running. Last completed scan: ${displayDate(data.checkedAt)}.`;
+        if (data.progress) status.textContent += ` ${data.progress.phase}: ${data.progress.product}. ${data.progress.fetchedCves || 0} CVEs retrieved so far.`;
       } else if (data.error) {
         status.textContent =
           `Warning: ${data.error}. Last completed scan: ${displayDate(data.checkedAt)}.`;
@@ -162,7 +208,7 @@
         status.textContent += " Coverage is limited.";
       }
       if (data.nvdResultsTruncated) {
-        status.textContent += " NVD returned more CVEs than the 20-per-product search limit.";
+        status.textContent += " Some NVD product histories could not be fully retrieved. See product coverage below.";
       }
       if (data.coverageNote) status.textContent += ` ${data.coverageNote}`;
 
@@ -194,7 +240,10 @@
     }
   }
 
-  if (search) search.addEventListener("input", renderResults);
+  if (search) search.addEventListener("input", () => { page = 1; renderResults(); });
+  if (matchFilter) matchFilter.addEventListener("change", () => { page = 1; renderResults(); });
+  if (previous) previous.addEventListener("click", () => { if (page > 1) { page--; renderResults(); } });
+  if (next) next.addEventListener("click", () => { if (!next.disabled) { page++; renderResults(); } });
 
   loadSecurityWatch();
   loadUpdateTimes();

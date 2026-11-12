@@ -56,3 +56,31 @@ Before starting a checkout with this feature for the first time, run `npm run mi
 with the usual `DATABASE_URL` configured, then restart `npm start`. The migration
 adds the notes and audit columns without changing existing versions or statuses;
 it can safely be run again. Use `npm test` for the complete test suite.
+
+CVE Security Watch verifies an application family against the active
+[NVD CPE dictionary](https://nvd.nist.gov/developers/products) before requesting
+CVEs with the [NVD product filter](https://nvd.nist.gov/developers/vulnerabilities).
+Names and publishers must identify the product precisely (for example, `Chrome`
+and `Google`, rather than `Google` and `Google`). It normalizes case and word
+separators and removes an exact publisher prefix; it does not infer aliases.
+An unresolved name is shown as needing identification, never as zero vulnerabilities.
+The dictionary lookup checks up to 100 entries for the exact application family;
+no active match in that lookup requires review, including retired or renamed CPEs.
+
+Each six-hour scan still covers one rotating batch of up to four products.
+For each identified product it follows NVD result pages (2,000 records per page,
+up to ten pages) and sorts retrieved results newest first. Dictionary requests,
+pages, and retries are paced together. Rate-limit and temporary HTTP errors retry
+at most twice, honoring Retry-After up to one minute; longer cooldowns are reported
+as incomplete. Failed later pages preserve the results already retrieved.
+Product coverage lists retrieved/total records and makes partial scans explicit.
+Only the current batch is cached in memory; restarting clears the cache and rotation.
+
+The dashboard separates affected-version matches, results needing review, and
+results not established as affected. Search and match filters work across the
+entire batch, displayed 25 results per page. Severity counters count product/CVE
+pairs across all results, including uncertain matches. The existing conservative
+version evaluator remains: numeric ranges require equal component counts, and
+unknown platforms, complex AND rules, or ambiguous versions require review.
+Product-filtered discovery may miss records awaiting NVD CPE mappings; even a
+complete product search is not proof that a software installation is safe.
