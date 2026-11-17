@@ -238,6 +238,71 @@ router.get("/audit", async (req, res) => {
 
 
 
+// Apply the exact selection and its audit history in one transaction.
+router.post("/bulk", async (req, res) => {
+  const { action, status, versionIds, groupIds } = req.body || {};
+  const deleting = action === "delete";
+  if ((!deleting && (action !== "status" || !STATUSES.has(status))) ||
+      !Array.isArray(versionIds) || !versionIds.every(isUUID) ||
+      !Array.isArray(groupIds) || !groupIds.every(isUUID) ||
+      (!deleting && groupIds.length) || !(versionIds.length + groupIds.length)) {
+    return res.status(400).json({ error: "Choose valid inventory records and an action." });
+  }
+
+  const versions = [...new Set(versionIds.map(id => id.toLowerCase()))];
+  const groups = [...new Set(groupIds.map(id => id.toLowerCase()))];
+  const actor = [req.session.adminId, req.session.adminEmail];
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query("BEGIN");
+    // Lock parents before children, as in the individual group-delete route.
+    const lockedGroups = await client.query(
+      "SELECT id FROM software WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE", [groups]);
+    const lockedVersions = await client.query(
+      `SELECT id FROM software_versions WHERE id = ANY($1::uuid[]) OR software_id = ANY($2::uuid[])
+       ORDER BY id FOR UPDATE`, [versions, groups]);
+    const wanted = new Set(versions);
+    if (lockedGroups.rowCount !== groups.length || lockedVersions.rowCount !== versions.length ||
+        lockedVersions.rows.some(row => !wanted.has(row.id))) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "The selection changed in inventory. Refresh and review it before trying again." });
+    }
+
+    const result = await client.query(
+      `INSERT INTO softtrack_audit_events
+        (software_version_id, software_name, publisher, version, old_status, new_status,
+         old_notes, new_notes, deleted_status, action, admin_id, admin_email)
+       SELECT v.id, s.name, s.publisher, v.version, v.status, $2,
+         v.notes, CASE WHEN $3 THEN NULL ELSE v.notes END,
+         CASE WHEN $3 THEN v.status ELSE NULL END, $4, $5, $6
+       FROM software_versions v JOIN software s ON s.id = v.software_id
+       WHERE v.id = ANY($1::uuid[]) AND ($3 OR v.status IS DISTINCT FROM $2)`,
+      [versions, deleting ? null : status, deleting, deleting ? "deleted" : "status_changed", ...actor]);
+    if (deleting) {
+      await client.query(
+        `INSERT INTO softtrack_audit_events
+          (software_name, publisher, version, old_software_name, old_publisher, action, admin_id, admin_email)
+         SELECT name, publisher, '', name, publisher, 'deleted', $2, $3 FROM software
+         WHERE id = ANY($1::uuid[])`, [groups, ...actor]);
+      await client.query("DELETE FROM software_versions WHERE id = ANY($1::uuid[])", [versions]);
+      await client.query("DELETE FROM software WHERE id = ANY($1::uuid[])", [groups]);
+    } else {
+      await client.query(
+        "UPDATE software_versions SET status = $2 WHERE id = ANY($1::uuid[]) AND status IS DISTINCT FROM $2",
+        [versions, status]);
+    }
+    await client.query("COMMIT");
+    res.json({ versions: result.rowCount, groups: groups.length });
+  } catch (error) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Bulk inventory action failed:", error.message);
+    res.status(500).json({ error: "Unable to complete the inventory action. Refresh the inventory before retrying." });
+  } finally {
+    client?.release();
+  }
+});
+
 // ADMIN: Add software or a new version.
 router.post("/", async (req, res) => {
   const { name, publisher, version, status, notes } = req.body || {};

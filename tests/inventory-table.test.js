@@ -181,3 +181,30 @@ test("admin group and version selection stays synchronized across filters, pages
   assert.equal(all().indeterminate, false);
   assert.equal(descendants(setup().container, "input").length, 0);
 });
+
+test("deletion distinguishes selecting whole groups from individual versions, including across filters", () => {
+  const ui = setup(undefined, true);
+  const toggle = (label, checked) => {
+    const input = descendants(ui.container, "input").find(el => el.getAttribute("aria-label") === label);
+    input.checked = checked;
+    input.handlers.change();
+  };
+  ui.table.update(data, {query:"1.61"});
+  toggle("Select all matching records across all pages", true);
+  assert.equal(ui.table.getSelection()[0].wholeGroup, false);
+  assert.equal(ui.table.getSelection()[0].versions[0].number, "1.61");
+  toggle("Select entire software group: App (Vendor)", true);
+  assert.equal(ui.table.getSelection()[0].versions.length, 61);
+  assert.equal(ui.table.getSelection()[0].wholeGroup, true);
+  toggle("Select App (Vendor), version 1.61", false);
+  assert.equal(ui.table.getSelection()[0].wholeGroup, false);
+  ui.table.update(data, {query:"Other"});
+  toggle("Select all matching records across all pages", true);
+  assert.equal(ui.table.getSelection()[1].wholeGroup, true);
+  assert.deepEqual(ui.table.getSelection()[1].versions, []);
+  ui.table.clearSelection();
+  const single = [{ ...data[0], versions: [data[0].versions[0]] }];
+  ui.table.update(single);
+  toggle("Select App (Vendor), version 1.1", true);
+  assert.equal(ui.table.getSelection()[0].wholeGroup, false);
+});

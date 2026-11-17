@@ -151,3 +151,14 @@ for (const status of ["Approved", "Denied", "Pending"]) {
     assert.equal(descendants(list, "script").length, 0);
   });
 }
+
+test("bulk endpoint checks the administrator, origin, selection and allowed statuses before writing", async () => {
+  const h = setup();
+  const body = {action:"status", status:"Approved", versionIds:[id], groupIds:[]};
+  assert.equal((await h.request("POST","/bulk",body,{admin:false})).status,401);
+  assert.equal((await h.request("POST","/bulk",body,{origin:"https://example.org"})).status,403);
+  for (const changes of [{status:"Invalid"},{versionIds:[]},{groupIds:[id]},{versionIds:["bad"]},{action:"other"}]) {
+    assert.equal((await h.request("POST","/bulk",{...body,...changes})).status,400);
+  }
+  assert.equal(h.queries.length,0);
+});

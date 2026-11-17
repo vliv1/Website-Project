@@ -42,7 +42,8 @@
     return version ? `version:${version.id}` : `group:${software.id}`;
   }
 
-  function createSelection(doc) {
+  function createSelection(doc, onChange) {
+    const selectedGroups = new Set();
     const selected = new Set();
     const groups = new Map();
     let controls = [];
@@ -53,7 +54,12 @@
     const clear = doc.createElement("button");
     clear.type = "button";
     clear.textContent = "Clear selection";
-    clear.addEventListener("click", () => { selected.clear(); sync(); });
+    function clearSelection() {
+      selected.clear();
+      selectedGroups.clear();
+      sync();
+    }
+    clear.addEventListener("click", clearSelection);
 
     function sync() {
       const totals = new Map();
@@ -66,9 +72,10 @@
       }
       count.textContent = `${selected.size} selected`;
       clear.disabled = !selected.size;
+      onChange?.(selected.size, [...selected].some(key => key.startsWith("version:")));
     }
 
-    function checkbox(text, description) {
+    function checkbox(text, description, groupId) {
       const label = doc.createElement("label");
       label.className = "inventory-checkbox";
       const input = doc.createElement("input");
@@ -85,6 +92,18 @@
           if (input.checked) selected.add(key);
           else selected.delete(key);
         }
+        if (!input.checked) {
+          for (const id of selectedGroups) {
+            if (!groups.get(id).every(key => selected.has(key))) selectedGroups.delete(id);
+          }
+        } else if (groupId !== undefined) {
+          selectedGroups.add(groupId);
+        } else if (control === all.control) {
+          const matching = new Set(control.keys);
+          for (const [id, keys] of groups) {
+            if (keys.every(key => matching.has(key))) selectedGroups.add(id);
+          }
+        }
         sync();
       });
       return { label, control };
@@ -93,9 +112,9 @@
     const all = checkbox("Select all matching records", "Select all matching records across all pages");
     toolbar.append(all.label, count, clear);
 
-    function cell(text, description, keys) {
+    function cell(text, description, keys, groupId) {
       const td = doc.createElement("td");
-      const item = checkbox(text, description);
+      const item = checkbox(text, description, groupId);
       item.control.keys = keys;
       controls.push(item.control);
       td.appendChild(item.label);
@@ -103,7 +122,14 @@
     }
 
     return {
-      toolbar, sync,
+      toolbar, sync, clearSelection,
+      snapshot(inventory) {
+        return inventory.flatMap(software => {
+          const versions = (software.versions || []).filter(v => selected.has(recordKey(software, v)));
+          const wholeGroup = selectedGroups.has(software.id) || selected.has(recordKey(software, null));
+          return wholeGroup || versions.length ? [{ software, versions, wholeGroup }] : [];
+        });
+      },
       updateGroups(inventory) {
         groups.clear();
         const available = new Set();
@@ -114,6 +140,9 @@
           for (const key of keys) available.add(key);
         }
         for (const key of selected) if (!available.has(key)) selected.delete(key);
+        for (const id of selectedGroups) {
+          if (!groups.get(id)?.every(key => selected.has(key))) selectedGroups.delete(id);
+        }
       },
       startPage(records) {
         all.control.keys = records.map(row => recordKey(row.software, row.version));
@@ -121,7 +150,7 @@
       },
       groupCell({ software }) {
         const name = `${software.name} (${software.publisher})`;
-        return cell(software.name, `Select entire software group: ${name}`, groups.get(software.id));
+        return cell(software.name, `Select entire software group: ${name}`, groups.get(software.id), software.id);
       },
       versionCell({ software, version, number }) {
         if (!version) {
@@ -134,9 +163,9 @@
     };
   }
 
-  function create({ container, createDetails, selectable = false }) {
+  function create({ container, createDetails, selectable = false, onSelectionChange }) {
     const doc = container.ownerDocument;
-    const selection = selectable ? createSelection(doc) : null;
+    const selection = selectable ? createSelection(doc, onSelectionChange) : null;
     const state = { query: "", status: "All", sort: "name", direction: "asc", page: 1, pageSize: 25 };
     let inventory = [], error = "", result, openDetail = null;
     function element(tag, text = "", className = "") {
@@ -293,6 +322,8 @@
         error = options.error || "";
         render();
       },
+      getSelection() { return selection?.snapshot(inventory) || []; },
+      clearSelection() { selection?.clearSelection(); },
       getFilteredRows() { return select(inventory, state).rows; }
     };
   }

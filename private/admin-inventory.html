@@ -162,7 +162,28 @@
         Loading software inventory...
       </p>
 
+      <div id="bulkControls" class="bulk-controls" hidden>
+        <label for="bulkStatus">Change selected versions to</label>
+        <select id="bulkStatus">
+          <option value="">Choose status</option>
+          <option>Pending</option>
+          <option>Approved</option>
+          <option>Denied</option>
+        </select>
+        <button id="applyBulkStatus" type="button" class="admin-edit-button" disabled>Apply status</button>
+        <button id="reviewBulkDelete" type="button" class="admin-delete-button">Delete selected…</button>
+      </div>
       <div id="adminSoftwareList"></div>
+      <dialog id="bulkDeleteDialog" aria-labelledby="bulkDeleteTitle">
+        <h2 id="bulkDeleteTitle">Delete selected records?</h2>
+        <p id="bulkDeleteSummary"></p>
+        <ul id="bulkDeleteList" tabindex="0" aria-label="Records to delete"></ul>
+        <p>This action cannot be undone.</p>
+        <form method="dialog" class="bulk-dialog-actions">
+          <button value="cancel" autofocus class="admin-edit-button">Cancel</button>
+          <button value="delete" class="admin-delete-button">Delete permanently</button>
+        </form>
+      </dialog>
     </section>
   </main>
 </body>

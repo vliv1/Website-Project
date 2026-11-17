@@ -1008,3 +1008,16 @@ html {
 .product-chooser p { overflow-wrap: anywhere; }
 .identification-actions { justify-content: flex-start; }
 .identification-actions .admin-import-button { margin: 0; }
+
+.bulk-controls, .bulk-dialog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bulk-controls { margin: 12px 0 16px; }
+.bulk-controls[hidden] { display: none; }
+.bulk-controls select { padding: 8px; border: 1px solid #94a3b8; border-radius: 8px; font: inherit; }
+.bulk-controls button:disabled { opacity: .5; cursor: not-allowed; }
+#bulkDeleteDialog { width: min(32rem, 90vw); max-height: 85vh; box-sizing: border-box; border: 1px solid #94a3b8; border-radius: 14px; padding: 24px; }
+#bulkDeleteDialog::backdrop { background: rgb(15 23 42 / 65%); }
+.admin-page[data-theme="dark"] #bulkDeleteDialog,
+.admin-page[data-theme="dark"] .bulk-controls select { background: #18243a; color: #f1f5f9; }
+#bulkDeleteList { max-height: 30vh; overflow: auto; padding-inline-start: 22px; }
+#bulkDeleteList li { padding-bottom: 8px; overflow-wrap: anywhere; }
+.bulk-dialog-actions { justify-content: flex-end; }

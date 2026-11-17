@@ -47,7 +47,7 @@ app.use(helmet({
   }
 }));
 
-app.use(express.json({ limit: "10kb" }));
+
 
 const PgSession = connectPgSimple(session);
 
@@ -127,6 +127,10 @@ function requireAdmin(req, res, next) {
 
   next();
 }
+
+// Large selections may include version IDs from many inventory pages.
+app.post("/api/software/bulk", requireAdmin, express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "10kb" }));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

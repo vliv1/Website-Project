@@ -24,8 +24,103 @@ let adminInventoryError = "";
 const adminInventoryTable = adminSoftwareList ? InventoryTable.create({
   container: adminSoftwareList,
   selectable: true,
+  onSelectionChange: updateBulkControls,
   createDetails: ({ software, version }) => createAdminSoftwareCard(software, version)
 }) : null;
+
+const bulkControls = document.getElementById("bulkControls");
+const bulkStatus = document.getElementById("bulkStatus");
+const bulkApply = document.getElementById("applyBulkStatus");
+const bulkDelete = document.getElementById("reviewBulkDelete");
+const bulkDialog = document.getElementById("bulkDeleteDialog");
+let pendingDeletion = null;
+let bulkBusy = false;
+
+function updateBulkControls(count, hasVersions) {
+  if (!bulkControls) return;
+  bulkControls.hidden = !count || Boolean(adminInventoryError);
+  bulkStatus.disabled = !hasVersions || bulkBusy;
+  bulkApply.disabled = bulkStatus.disabled || !bulkStatus.value;
+  bulkDelete.disabled = bulkBusy;
+  if (!count) bulkStatus.value = "";
+}
+
+bulkStatus?.addEventListener("change", () => {
+  bulkApply.disabled = bulkStatus.disabled || !bulkStatus.value;
+});
+
+function quantities(count, noun) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function selectionPayload(selection, action) {
+  return {
+    action,
+    versionIds: selection.flatMap(entry => entry.versions.map(version => version.id)),
+    groupIds: selection.filter(entry => action === "delete" && entry.wholeGroup).map(entry => entry.software.id)
+  };
+}
+
+bulkApply?.addEventListener("click", () => {
+  const payload = selectionPayload(adminInventoryTable.getSelection(), "status");
+  if (bulkStatus.value && payload.versionIds.length) runBulkAction({ ...payload, status: bulkStatus.value });
+});
+
+bulkDelete?.addEventListener("click", () => {
+  const selection = adminInventoryTable.getSelection();
+  if (bulkBusy || !selection.length) return;
+  pendingDeletion = selectionPayload(selection, "delete");
+  const list = document.getElementById("bulkDeleteList");
+  list.replaceChildren();
+  for (const { software, versions, wholeGroup } of selection) {
+    const item = document.createElement("li");
+    item.appendChild(makeElement("strong", software.name + " (" + software.publisher + ")"));
+    const scope = wholeGroup ? "Delete group" : "Delete versions only";
+    const numbers = versions.map(v => v.number).join(", ");
+    item.appendChild(makeElement("div", numbers ? scope + " · " + numbers : scope + " · No versions"));
+    list.appendChild(item);
+  }
+  document.getElementById("bulkDeleteSummary").textContent =
+    `Permanently delete ${quantities(pendingDeletion.versionIds.length, "version")} and ${quantities(pendingDeletion.groupIds.length, "software group")}?`;
+  bulkDialog.returnValue = "";
+  bulkDialog.showModal();
+});
+
+bulkDialog?.addEventListener("close", () => {
+  const payload = pendingDeletion;
+  pendingDeletion = null;
+  if (bulkDialog.returnValue === "delete" && payload) runBulkAction(payload);
+});
+
+async function runBulkAction(payload) {
+  if (bulkBusy) return;
+  bulkBusy = true;
+  const panel = document.getElementById("adminInventory");
+  panel.inert = true;
+  try {
+    adminMessage.textContent = payload.action === "delete" ? "Deleting selected records…" : "Updating selected versions…";
+    const response = await fetch("/api/software/bulk", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+    });
+    if (response.status === 401) throw new Error("Your session expired. Sign in again to continue.");
+    if (response.status === 413) throw new Error("This selection is too large. Select fewer records and try again.");
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Unable to complete the inventory action.");
+    adminInventoryTable.clearSelection();
+    await loadAdminInventory();
+    const feedback = payload.action === "delete"
+      ? `Deleted ${quantities(result.versions, "version")} and ${quantities(result.groups, "software group")}.`
+      : `Changed ${quantities(result.versions, "version")} to ${payload.status}.`;
+    adminMessage.textContent = [feedback, adminInventoryError].filter(Boolean).join(" ");
+    if (payload.action === "delete") window.ProductIdentification?.load();
+  } catch (error) {
+    adminMessage.textContent = error.message || "Unable to complete the inventory action.";
+  } finally {
+    panel.inert = false;
+    bulkBusy = false;
+  }
+}
 
 function setAdminCount(id, value) {
   const counter = document.getElementById(id);
