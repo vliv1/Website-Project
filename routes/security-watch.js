@@ -22,7 +22,14 @@ let requestedNvd = false;
 let progress = null;
 
 // All dictionary requests, CVE pages and retries share the same pacing.
-async function requestNvd(endpoint, parameters) {
+let nvdQueue = Promise.resolve();
+function requestNvd(endpoint, parameters) {
+  const request = nvdQueue.then(() => fetchNvd(endpoint, parameters));
+  nvdQueue = request.catch(() => {});
+  return request;
+}
+
+async function fetchNvd(endpoint, parameters) {
   const url = new URL(`https://services.nvd.nist.gov/rest/json/${endpoint}/2.0`);
   for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value));
   let delay = NVD_DELAY_MS;
@@ -114,6 +121,10 @@ function identityKey(value) {
 function identityMatches(product, fields) {
   const vendor = literalCpe(fields[1]);
   const name = literalCpe(fields[2]);
+  if (product.nvd_family) {
+    if (!vendor || !name) return null;
+    return `cpe:2.3:${fields.slice(0, 3).join(":")}` === product.nvd_family;
+  }
   const publisher = identityKey(product.publisher);
   const inventoryName = identityKey(product.name);
   if (!vendor || !name || !publisher || !inventoryName) return null;
@@ -277,13 +288,20 @@ function matchCve(cve, product) {
 
 // Verify a literal application family in the dictionary before requesting CVEs.
 // Display-name normalization never guesses publisher aliases or product synonyms.
-async function resolveProduct(product) {
+function automaticFamily(product) {
   const publisher = identityKey(product.publisher);
   let name = identityKey(product.name);
   if (name.startsWith(`${publisher} `)) name = name.slice(publisher.length + 1);
   if (!publisher || !name || name === publisher) return null;
   const encode = value => value.replace(/ /g, "_").replace(/[^a-z0-9_.-]/g, char => "\\" + char);
-  const prefix = `cpe:2.3:a:${encode(publisher)}:${encode(name)}`;
+  return `cpe:2.3:a:${encode(publisher)}:${encode(name)}`;
+}
+
+async function resolveProduct(product) {
+  // An administrator's family was verified against an active dictionary record on save.
+  if (product.nvd_family) return { criteria: product.nvd_family };
+  const prefix = automaticFamily(product);
+  if (!prefix) return null;
   const json = await requestNvd("cpes", { cpeMatchString: prefix, resultsPerPage: 100, startIndex: 0 });
   if (!Array.isArray(json.products)) throw new Error("Invalid NVD dictionary response");
   const entry = json.products.find(item => {
@@ -304,7 +322,7 @@ async function scan() {
   const total = versionCount.rows[0].total;
   const totalProducts = productCount.rows[0].total;
   const offset = totalProducts ? nextOffset % totalProducts : 0;
-  const data = await pool.query(`SELECT s.id, s.name, s.publisher, COUNT(v.id)::int AS version_count,
+  const data = await pool.query(`SELECT s.id, s.name, s.publisher, s.nvd_family, s.nvd_needs_identification, COUNT(v.id)::int AS version_count,
       ARRAY_AGG(v.version ORDER BY v.version) AS versions
     FROM software s JOIN software_versions v ON v.software_id = s.id
     GROUP BY s.id, s.name, s.publisher
@@ -324,8 +342,15 @@ async function scan() {
     progress = { product: term, phase: "Identifying product", fetchedCves: 0, totalCves: null };
     try {
       const identity = await resolveProduct(product);
+      if (product.nvd_needs_identification !== !identity) {
+        // A selection or rename made while NVD was responding takes precedence.
+        await pool.query(`UPDATE software SET nvd_needs_identification = $5
+          WHERE id = $1 AND name = $2 AND publisher = $3
+            AND nvd_family IS NOT DISTINCT FROM $4`,
+          [product.id, product.name, product.publisher, product.nvd_family, !identity]);
+      }
       if (!identity) {
-        report.message = "No active exact application identity was verified in the NVD dictionary lookup. Ask an administrator to check the software name and publisher. This product has not been checked for CVEs.";
+        report.message = "No active exact application identity was verified in the NVD dictionary lookup. An administrator can choose the NVD product in Software Inventory. This product has not been checked for CVEs.";
         continue;
       }
       report.criteria = identity.criteria;
@@ -425,7 +450,7 @@ router.get("/status", async (_req, res) => {
 
 router.get("/cves", (_req, res) => {
   res.set("Cache-Control", "no-store");
-  if (!running && Date.now() - lastAttempt > TTL) startScan();
+  scanIfDue();
   res.json({ ...cache, scanning: !!running, progress,
     note: "Product identities are checked against the NVD dictionary before CVEs are retrieved by CPE family. Affected version match means recorded versions satisfy supported NVD criteria, not confirmed exploitability. Uncertain matches require review. Not established as affected is not proof of safety. Scans cover one rotating batch, up to 20,000 CVEs per product, and may omit records without NVD product mappings." });
 });
@@ -435,3 +460,11 @@ const timer = setInterval(() => {
 }, 30 * 60 * 1000);
 timer.unref();
 module.exports = router;
+
+
+function scanIfDue() {
+  if (!running && Date.now() - lastAttempt > TTL) startScan();
+  return Boolean(running);
+}
+
+module.exports.identification = { requestNvd, parseCpe23, literalCpe, scanIfDue };

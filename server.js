@@ -278,6 +278,8 @@ app.use(require("./routes/admin-pages"));
 
 app.use("/api/software", softwareRoutes);
 app.use("/api/security-watch", securityWatchRoutes);
+app.use("/api/admin/product-identification", requireAdmin,
+  require("./routes/product-identification")(securityWatchRoutes.identification, requireSameOrigin));
 
 // Keep your existing V2 public website working.
 app.use(express.static(

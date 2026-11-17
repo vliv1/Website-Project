@@ -713,6 +713,7 @@ async function loadAdmin() {
       `Signed in as: ${result.email}`;
 
     adminContent.hidden = false;
+    window.ProductIdentification?.load();
 
     await loadAdminInventory();
     await loadAuditHistory();

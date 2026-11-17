@@ -30,7 +30,8 @@ function harness(products = [product()], getNvd = () => ({ vulnerabilities: [{ c
   const handlers = new Map();
   const pool = { async query(sql, params) {
     queries.push({ sql, params });
-    assert.match(sql.trim(), /^SELECT\b/i, "all DB operations must remain read-only");
+    if (sql.startsWith("UPDATE software SET nvd_needs_identification")) return { rows: [] };
+    assert.match(sql.trim(), /^SELECT\b/i);
     if (queryError) throw queryError;
     if (sql.includes("softtrack_audit_events")) return { rows: [{ updated_at: "2026-11-11T12:00:00Z" }] };
     if (/COUNT\(\*\).*FROM software_versions/.test(sql)) return { rows: [{ total: products.reduce((n, p) => n + p.version_count, 0) }] };
@@ -469,4 +470,20 @@ test("frontend: product identification failures and partial coverage are visible
   assert.match(coverage, /25 of 31 CVEs retrieved/);
   assert.match(coverage, /<script>literal<\/script>/);
   assert.ok(!h.created.some(element => element.tag === "script"));
+});
+
+test("a saved product family controls discovery and version matching for an inventory alias", async () => {
+  const alias = product(["1.2.3", "2.0.0"], {
+    name: "Classroom Browser", publisher: "Technology Services",
+    nvd_family: "cpe:2.3:a:acme:widget", nvd_needs_identification: false
+  });
+  const h = harness([alias]);
+  await h.api.startScan();
+  const body = await h.endpoint("/cves");
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].url.searchParams.get("virtualMatchString"), alias.nvd_family);
+  assert.equal(body.productResults[0].name, alias.name);
+  assert.deepEqual(body.candidates[0].matchedVersions, ["1.2.3"]);
+  assert.equal(body.candidates[0].versionResults[1].status, "not_established");
+  assert.equal(match(cve(exact("1.2.3", {}, { product: "widget_pro" })), alias).matchStatus, "potential");
 });

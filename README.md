@@ -60,10 +60,13 @@ it can safely be run again. Use `npm test` for the complete test suite.
 CVE Security Watch verifies an application family against the active
 [NVD CPE dictionary](https://nvd.nist.gov/developers/products) before requesting
 CVEs with the [NVD product filter](https://nvd.nist.gov/developers/vulnerabilities).
-Names and publishers must identify the product precisely (for example, `Chrome`
+Automatic lookups require names and publishers to identify the product precisely (for example, `Chrome`
 and `Google`, rather than `Google` and `Google`). It normalizes case and word
 separators and removes an exact publisher prefix; it does not infer aliases.
-An unresolved name is shown as needing identification, never as zero vulnerabilities.
+After running `npm run migrate`, Admin → Software Inventory → Needs identification lists
+unresolved titles across scan batches. Search for an application, review its NVD
+publisher and product, and save the match. The saved family applies to all recorded
+versions when that title is next scanned. Use Saved product matches to correct a choice.
 The dictionary lookup checks up to 100 entries for the exact application family;
 no active match in that lookup requires review, including retired or renamed CPEs.
 

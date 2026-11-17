@@ -989,3 +989,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .admin-page .admin-action-button { transition: none; }
 }
+
+.identification-entry, .identification-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.identification-entry { padding: 12px 0; border-top: 1px solid #94a3b855; }
+.identification-entry small { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+.identification-panel summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.product-chooser { border: 1px solid #94a3b877; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.product-chooser h3 { margin-top: 0; }
+.product-chooser .admin-filters { margin: 8px 0; flex-wrap: wrap; }
+.product-chooser .admin-filters input { min-width: min(12em, 100%); }
+.product-chooser select { display: block; max-width: 100%; margin: 8px 0; padding: 8px; font: inherit; }
+.product-chooser p { overflow-wrap: anywhere; }
+.identification-actions { justify-content: flex-start; }
+.identification-actions .admin-import-button { margin: 0; }

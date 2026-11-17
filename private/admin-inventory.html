@@ -17,6 +17,7 @@
   <script src="/inventory-table.js" defer></script>
 
   <script src="/admin-navigation.js" defer></script>
+  <script src="/product-identification.js" defer></script>
   <script src="/admin.js" defer></script>
 </head>
 
@@ -94,6 +95,40 @@
   </header>
 
   <main class="admin-container" id="adminContent" hidden>
+    <section class="admin-panel identification-panel" aria-labelledby="identificationTitle">
+      <div class="admin-panel-heading">
+        <div>
+          <h2 id="identificationTitle">Needs identification</h2>
+          <p>Choose the NVD product Security Watch should use for each flagged title.</p>
+        </div>
+        <button id="refreshIdentification" type="button" class="admin-edit-button">Refresh list</button>
+      </div>
+      <p id="identificationMessage" role="status">Loading product matches…</p>
+      <div id="unresolvedProducts"></div>
+      <details id="savedMatches" hidden>
+        <summary>Saved product matches</summary>
+        <div id="mappedProducts"></div>
+      </details>
+      <form id="productChooser" class="product-chooser" hidden>
+        <h3 id="chooserTitle">Choose product</h3>
+        <label for="dictionarySearch">Search the NVD product dictionary</label>
+        <div class="admin-filters">
+          <input type="search" id="dictionarySearch" minlength="2" maxlength="120" required>
+          <button type="submit" class="admin-edit-button">Search</button>
+        </div>
+        <p id="dictionaryStatus" role="status"></p>
+        <div id="dictionaryResults" hidden>
+          <label for="dictionaryChoice">Publisher / product</label>
+          <select id="dictionaryChoice"></select>
+        </div>
+        <button id="dictionaryMore" type="button" class="admin-edit-button" hidden>Load more results</button>
+        <p id="dictionaryReview"></p>
+        <div class="identification-actions">
+          <button id="saveProductMatch" type="button" class="admin-import-button" disabled>Save match</button>
+          <button id="cancelProductMatch" type="button" class="admin-edit-button">Cancel</button>
+        </div>
+      </form>
+    </section>
     <section id="adminInventory" class="admin-panel">
       <div class="admin-panel-heading">
         <div>
