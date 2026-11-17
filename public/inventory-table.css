@@ -70,3 +70,31 @@ html.dark-mode .inventory-grid .status-denied,
   .inventory-pagination { justify-content: space-between; gap: 8px; }
   .inventory-table-toolbar { align-items: flex-start; flex-direction: column; }
 }
+
+.inventory-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.inventory-selection-bar [role="status"] { color: var(--table-muted); }
+.inventory-grid .inventory-checkbox {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.inventory-checkbox input[type="checkbox"] {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+.inventory-checkbox input:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }

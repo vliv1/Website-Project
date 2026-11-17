@@ -55,11 +55,11 @@ test("clamps pages after deletions and handles empty results and page-size chang
   assert.equal(empty.end, 0);
 });
 
-function setup(createDetails) {
+function setup(createDetails, selectable = false) {
   const document = createDocument();
   const container = document.createElement("div");
   container.id = "testInventory";
-  const table = InventoryTable.create({ container, createDetails });
+  const table = InventoryTable.create({ container, createDetails, selectable });
   table.update(data);
   const buttons = () => descendants(container, "button");
   const findButton = text => buttons().find(button => button.textContent === text);
@@ -142,4 +142,42 @@ test("public CSV export includes all filtered rows in sort order, across pages",
   document.getElementById("statusFilter").handlers.change();
   document.getElementById("exportBtn").click();
   assert.equal(csv.split("\r\n").length, 31);
+});
+
+test("admin group and version selection stays synchronized across filters, pages and refreshes", () => {
+  const ui = setup(undefined, true);
+  const boxes = () => descendants(ui.container, "input");
+  const box = label => boxes().find(input => input.getAttribute("aria-label") === label);
+  const group = () => box("Select entire software group: App (Vendor)");
+  const all = () => boxes()[0];
+  const version = n => box(`Select App (Vendor), version 1.${n}`);
+  const toggle = (input, checked) => { input.checked = checked; input.handlers.change(); };
+  toggle(version(1), true);
+  assert.equal(group().indeterminate, true);
+  assert.equal(all().indeterminate, true);
+  ui.findButton("Next").click();
+  assert.equal(group().indeterminate, true);
+  toggle(group(), true);
+  assert.equal(version(26).checked, true);
+  // The empty second group is still unselected.
+  assert.equal(all().indeterminate, true);
+  ui.table.update(data, {status: "Approved"});
+  assert.equal(all().checked, true);
+  toggle(all(), false);
+  assert.equal(group().indeterminate, true);
+  ui.table.update(data);
+  assert.equal(version(1).checked, true);
+  assert.equal(version(2).checked, false);
+  toggle(all(), true);
+  ui.table.update(data, {query: "Other"});
+  assert.equal(box("Select entire software group: Empty App (Other)").checked, true);
+  assert.equal(boxes().length, 2);
+  ui.table.update([], {error: "Temporarily unavailable"});
+  ui.table.update([{...data[0], versions: data[0].versions.slice(0, 1)}]);
+  assert.equal(all().checked, true);
+  assert.ok(descendants(ui.container, "span").some(node => node.textContent === "1 selected"));
+  ui.findButton("Clear selection").click();
+  assert.equal(version(1).checked, false);
+  assert.equal(all().indeterminate, false);
+  assert.equal(descendants(setup().container, "input").length, 0);
 });

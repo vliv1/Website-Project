@@ -38,8 +38,105 @@
       end: Math.min(start + size, rows.length) };
   }
 
-  function create({ container, createDetails }) {
+  function recordKey(software, version) {
+    return version ? `version:${version.id}` : `group:${software.id}`;
+  }
+
+  function createSelection(doc) {
+    const selected = new Set();
+    const groups = new Map();
+    let controls = [];
+    const toolbar = doc.createElement("div");
+    toolbar.className = "inventory-selection-bar";
+    const count = doc.createElement("span");
+    count.setAttribute("role", "status");
+    const clear = doc.createElement("button");
+    clear.type = "button";
+    clear.textContent = "Clear selection";
+    clear.addEventListener("click", () => { selected.clear(); sync(); });
+
+    function sync() {
+      const totals = new Map();
+      for (const { input, keys } of controls) {
+        if (!totals.has(keys)) totals.set(keys, keys.reduce((n, key) => n + Number(selected.has(key)), 0));
+        const total = totals.get(keys);
+        input.disabled = !keys.length;
+        input.checked = total > 0 && total === keys.length;
+        input.indeterminate = total > 0 && total < keys.length;
+      }
+      count.textContent = `${selected.size} selected`;
+      clear.disabled = !selected.size;
+    }
+
+    function checkbox(text, description) {
+      const label = doc.createElement("label");
+      label.className = "inventory-checkbox";
+      const input = doc.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("aria-label", description);
+      label.title = description;
+      const caption = doc.createElement("span");
+      caption.textContent = text;
+      label.append(input, caption);
+      // The top control survives table renders and always uses the current filter.
+      const control = { input, keys: [] };
+      input.addEventListener("change", () => {
+        for (const key of control.keys) {
+          if (input.checked) selected.add(key);
+          else selected.delete(key);
+        }
+        sync();
+      });
+      return { label, control };
+    }
+
+    const all = checkbox("Select all matching records", "Select all matching records across all pages");
+    toolbar.append(all.label, count, clear);
+
+    function cell(text, description, keys) {
+      const td = doc.createElement("td");
+      const item = checkbox(text, description);
+      item.control.keys = keys;
+      controls.push(item.control);
+      td.appendChild(item.label);
+      return td;
+    }
+
+    return {
+      toolbar, sync,
+      updateGroups(inventory) {
+        groups.clear();
+        const available = new Set();
+        for (const software of inventory) {
+          const versions = software.versions?.length ? software.versions : [null];
+          const keys = versions.map(version => recordKey(software, version));
+          groups.set(software.id, keys);
+          for (const key of keys) available.add(key);
+        }
+        for (const key of selected) if (!available.has(key)) selected.delete(key);
+      },
+      startPage(records) {
+        all.control.keys = records.map(row => recordKey(row.software, row.version));
+        controls = [all.control];
+      },
+      groupCell({ software }) {
+        const name = `${software.name} (${software.publisher})`;
+        return cell(software.name, `Select entire software group: ${name}`, groups.get(software.id));
+      },
+      versionCell({ software, version, number }) {
+        if (!version) {
+          const td = doc.createElement("td");
+          td.textContent = "No versions recorded";
+          return td;
+        }
+        return cell(number, `Select ${software.name} (${software.publisher}), version ${number}`, [recordKey(software, version)]);
+      }
+    };
+  }
+
+  function create({ container, createDetails, selectable = false }) {
     const doc = container.ownerDocument;
+    const selection = selectable ? createSelection(doc) : null;
     const state = { query: "", status: "All", sort: "name", direction: "asc", page: 1, pageSize: 25 };
     let inventory = [], error = "", result, openDetail = null;
     function element(tag, text = "", className = "") {
@@ -76,7 +173,10 @@
     scroller.setAttribute("role", "region");
     scroller.setAttribute("aria-label", "Software inventory table");
     const table = element("table", "", "inventory-table");
-    table.appendChild(element("caption", "One row per version. Click a column heading to sort.", "inventory-table-caption"));
+    const instructions = selectable
+      ? "Select a software name for its entire group, or a version for one record."
+      : "One row per version. Click a column heading to sort.";
+    table.appendChild(element("caption", instructions, "inventory-table-caption"));
     const head = element("thead"), headRow = element("tr"), body = element("tbody");
     const headings = columns.map(([key, label]) => {
       const th = element("th");
@@ -108,7 +208,9 @@
     previous.disabled = true;
     next.disabled = true;
     pagination.append(previous, pageLabel, next);
-    container.replaceChildren(toolbar, scroller, empty, pagination);
+    container.replaceChildren(toolbar);
+    if (selection) container.appendChild(selection.toolbar);
+    container.append(scroller, empty, pagination);
 
     function closeDetails() {
       if (!openDetail) return;
@@ -121,6 +223,7 @@
       closeDetails();
       result = select(inventory, state);
       state.page = result.page;
+      selection?.startPage(result.rows);
       body.replaceChildren();
       headings.forEach(({ th, control, key, label }) => {
         const active = state.sort === key;
@@ -130,7 +233,9 @@
       });
       result.visible.forEach((record, index) => {
         const row = element("tr");
-        row.append(element("td", record.name), element("td", record.publisher), element("td", record.version ? record.number : "No versions recorded"));
+        const softwareCell = selection ? selection.groupCell(record) : element("td", record.name);
+        const versionCell = selection ? selection.versionCell(record) : element("td", record.version ? record.number : "No versions recorded");
+        row.append(softwareCell, element("td", record.publisher), versionCell);
         const statusCell = element("td");
         if (record.version) statusCell.appendChild(element("span", record.status, `inventory-status status-${record.status.toLowerCase()}`));
         else statusCell.textContent = "—";
@@ -167,6 +272,7 @@
         }
         body.appendChild(row);
       });
+      selection?.sync();
       const filtered = result.total !== result.totalUnfiltered ? ` (${result.totalUnfiltered} total)` : "";
       summary.textContent = error || (result.total ? `Showing ${result.start}–${result.end} of ${result.total} records${filtered}` : "0 matching records");
       empty.hidden = result.total > 0 && !error;
@@ -182,6 +288,7 @@
         const query = options.query || "", status = options.status || "All";
         if (query !== state.query || status !== state.status) state.page = 1;
         Object.assign(state, { query, status });
+        if (selection && !options.error && (inventory !== data || error)) selection.updateGroups(data);
         inventory = data;
         error = options.error || "";
         render();

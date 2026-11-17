@@ -23,6 +23,7 @@ let softwareInventory = [];
 let adminInventoryError = "";
 const adminInventoryTable = adminSoftwareList ? InventoryTable.create({
   container: adminSoftwareList,
+  selectable: true,
   createDetails: ({ software, version }) => createAdminSoftwareCard(software, version)
 }) : null;
 
