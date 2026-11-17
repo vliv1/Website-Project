@@ -24,8 +24,8 @@ module.exports = function productIdentification({ requestNvd, parseCpe23, litera
   router.get("/", async (_req, res) => {
     const scanning = scanIfDue();
     const { rows } = await pool.query(`SELECT id, name, publisher, nvd_family AS family,
-        nvd_needs_identification AS unresolved FROM software s
-      WHERE EXISTS (SELECT 1 FROM software_versions v WHERE v.software_id = s.id)
+        nvd_needs_identification AS unresolved FROM public.software s
+      WHERE EXISTS (SELECT 1 FROM public.software_versions v WHERE v.software_id = s.id)
         AND (nvd_family IS NOT NULL OR nvd_needs_identification IS DISTINCT FROM false)
       ORDER BY lower(name), lower(publisher), id`);
     res.json({ scanning, pending: rows.filter(r => r.unresolved === null && !r.family).length,
@@ -62,7 +62,7 @@ module.exports = function productIdentification({ requestNvd, parseCpe23, litera
     const selected = page.products.map(item => candidate(item.cpe)).find(option =>
       option && option.id.toLowerCase() === choiceId.toLowerCase() && option.family === family);
     if (!selected) return res.status(409).json({ error: "This dictionary choice has changed. Search again." });
-    const result = await pool.query(`UPDATE software SET nvd_family = $2, nvd_needs_identification = false
+    const result = await pool.query(`UPDATE public.software SET nvd_family = $2, nvd_needs_identification = false
       WHERE id = $1 AND nvd_family IS NOT DISTINCT FROM $3 AND name = $4 AND publisher = $5`,
       [req.params.id, selected.family, previousFamily, name, publisher]);
     if (!result.rowCount) return res.status(409).json({ error: "This inventory entry changed. Refresh the list before saving." });

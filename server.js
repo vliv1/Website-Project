@@ -53,6 +53,7 @@ const PgSession = connectPgSimple(session);
 
 const sessionStore = new PgSession({
   pool,
+  schemaName: "public",
   tableName: "session",
   createTableIfMissing: true,
   pruneSessionInterval: 60 * 15
@@ -178,7 +179,7 @@ app.post(
 
       const result = await pool.query(
         `SELECT id, email, password_hash
-         FROM admins
+         FROM public.admins
          WHERE email = $1`,
         [email.trim().toLowerCase()]
       );

@@ -10,7 +10,7 @@ async function main() {
   const { input, password } = await import("@inquirer/prompts");
 
   const existing = await pool.query(
-    "SELECT COUNT(*)::integer AS count FROM admins"
+    "SELECT COUNT(*)::integer AS count FROM public.admins"
   );
 
   if (existing.rows[0].count !== 0) {
@@ -53,7 +53,7 @@ async function main() {
   });
 
   await pool.query(
-    `INSERT INTO admins (email, password_hash)
+    `INSERT INTO public.admins (email, password_hash)
      VALUES ($1, $2)`,
     [email, hash]
   );

@@ -30,11 +30,11 @@ function harness(products = [product()], getNvd = () => ({ vulnerabilities: [{ c
   const handlers = new Map();
   const pool = { async query(sql, params) {
     queries.push({ sql, params });
-    if (sql.startsWith("UPDATE software SET nvd_needs_identification")) return { rows: [] };
+    if (sql.startsWith("UPDATE public.software SET nvd_needs_identification")) return { rows: [] };
     assert.match(sql.trim(), /^SELECT\b/i);
     if (queryError) throw queryError;
     if (sql.includes("softtrack_audit_events")) return { rows: [{ updated_at: "2026-11-11T12:00:00Z" }] };
-    if (/COUNT\(\*\).*FROM software_versions/.test(sql)) return { rows: [{ total: products.reduce((n, p) => n + p.version_count, 0) }] };
+    if (/COUNT\(\*\).*FROM public\.software_versions/.test(sql)) return { rows: [{ total: products.reduce((n, p) => n + p.version_count, 0) }] };
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: products.length }] };
     assert.match(sql, /ARRAY_AGG\(v\.version/);
     assert.match(sql, /v\.software_id = s\.id/);

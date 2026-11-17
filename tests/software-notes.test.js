@@ -20,14 +20,14 @@ function setup({ failAudit = false } = {}) {
       if (sql === "COMMIT") stored = pending;
       if (sql === "ROLLBACK") pending = null;
       if (sql.includes("FOR UPDATE OF v")) return { rows: [{ ...stored }], rowCount: 1 };
-      if (sql.includes("UPDATE software_versions")) {
+      if (sql.includes("UPDATE public.software_versions")) {
         pending = { ...pending, version: params[0], status: params[1], notes: params[3] };
         return { rows: [{ ...pending }], rowCount: 1 };
       }
-      if (sql.includes("INSERT INTO softtrack_audit_events") && failAudit) throw new Error("Audit unavailable");
-      if (sql.includes("SELECT id") && sql.includes("FROM software_versions")) return { rows: [], rowCount: 0 };
-      if (sql.includes("SELECT id") && sql.includes("FROM software")) return { rows: [{ id }], rowCount: 1 };
-      if (sql.includes("INSERT INTO software_versions")) {
+      if (sql.includes("INSERT INTO public.softtrack_audit_events") && failAudit) throw new Error("Audit unavailable");
+      if (sql.includes("SELECT id") && sql.includes("FROM public.software_versions")) return { rows: [], rowCount: 0 };
+      if (sql.includes("SELECT id") && sql.includes("FROM public.software")) return { rows: [{ id }], rowCount: 1 };
+      if (sql.includes("INSERT INTO public.software_versions")) {
         pending = { ...original, version: params[1], status: params[2], notes: params[3] };
         return { rows: [{ ...pending }], rowCount: 1 };
       }
@@ -52,7 +52,7 @@ function setup({ failAudit = false } = {}) {
       }, error => error ? reject(error) : reject(new Error("Route not found")));
     });
   }
-  return { request, queries, stored: () => stored, audits: () => queries.filter(q => q.sql.includes("INSERT INTO softtrack_audit_events")) };
+  return { request, queries, stored: () => stored, audits: () => queries.filter(q => q.sql.includes("INSERT INTO public.softtrack_audit_events")) };
 }
 
 test("notes: admin authorization and same-origin checks run before writes", async () => {

@@ -54,7 +54,7 @@ async function fetchNvd(endpoint, parameters) {
 }
 
 async function inventoryTimestamp() {
-  const result = await pool.query("SELECT MAX(created_at) AS updated_at FROM softtrack_audit_events");
+  const result = await pool.query("SELECT MAX(created_at) AS updated_at FROM public.softtrack_audit_events");
   return result.rows[0]?.updated_at || null;
 }
 
@@ -315,16 +315,16 @@ async function resolveProduct(product) {
 
 async function scan() {
   const [versionCount, productCount] = await Promise.all([
-    pool.query("SELECT COUNT(*)::int AS total FROM software_versions"),
-    pool.query(`SELECT COUNT(*)::int AS total FROM software s
-      WHERE EXISTS (SELECT 1 FROM software_versions v WHERE v.software_id = s.id)`)
+    pool.query("SELECT COUNT(*)::int AS total FROM public.software_versions"),
+    pool.query(`SELECT COUNT(*)::int AS total FROM public.software s
+      WHERE EXISTS (SELECT 1 FROM public.software_versions v WHERE v.software_id = s.id)`)
   ]);
   const total = versionCount.rows[0].total;
   const totalProducts = productCount.rows[0].total;
   const offset = totalProducts ? nextOffset % totalProducts : 0;
   const data = await pool.query(`SELECT s.id, s.name, s.publisher, s.nvd_family, s.nvd_needs_identification, COUNT(v.id)::int AS version_count,
       ARRAY_AGG(v.version ORDER BY v.version) AS versions
-    FROM software s JOIN software_versions v ON v.software_id = s.id
+    FROM public.software s JOIN public.software_versions v ON v.software_id = s.id
     GROUP BY s.id, s.name, s.publisher
     ORDER BY lower(s.name), lower(s.publisher), s.id
     LIMIT $1 OFFSET $2`, [BATCH_SIZE, offset]);
@@ -344,7 +344,7 @@ async function scan() {
       const identity = await resolveProduct(product);
       if (product.nvd_needs_identification !== !identity) {
         // A selection or rename made while NVD was responding takes precedence.
-        await pool.query(`UPDATE software SET nvd_needs_identification = $5
+        await pool.query(`UPDATE public.software SET nvd_needs_identification = $5
           WHERE id = $1 AND name = $2 AND publisher = $3
             AND nvd_family IS NOT DISTINCT FROM $4`,
           [product.id, product.name, product.publisher, product.nvd_family, !identity]);

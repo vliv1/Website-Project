@@ -92,7 +92,7 @@ async function recordApprovalEvent(client, {
   adminEmail
 }) {
   await client.query(
-    `INSERT INTO softtrack_audit_events (
+    `INSERT INTO public.softtrack_audit_events (
       software_version_id,
       software_name,
       publisher,
@@ -160,8 +160,8 @@ router.get("/", async (req, res) => {
           ) FILTER (WHERE v.id IS NOT NULL),
           '[]'::json
         ) AS versions
-      FROM software s
-      LEFT JOIN software_versions v
+      FROM public.software s
+      LEFT JOIN public.software_versions v
         ON v.software_id = s.id
       GROUP BY s.id, s.name, s.publisher
       ORDER BY lower(s.name), lower(s.publisher)
@@ -216,7 +216,7 @@ router.get("/audit", async (req, res) => {
      action,
      admin_email,
      created_at
-   FROM softtrack_audit_events
+   FROM public.softtrack_audit_events
    ORDER BY created_at DESC, id DESC
    LIMIT 100`
 );
@@ -258,9 +258,9 @@ router.post("/bulk", async (req, res) => {
     await client.query("BEGIN");
     // Lock parents before children, as in the individual group-delete route.
     const lockedGroups = await client.query(
-      "SELECT id FROM software WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE", [groups]);
+      "SELECT id FROM public.software WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE", [groups]);
     const lockedVersions = await client.query(
-      `SELECT id FROM software_versions WHERE id = ANY($1::uuid[]) OR software_id = ANY($2::uuid[])
+      `SELECT id FROM public.software_versions WHERE id = ANY($1::uuid[]) OR software_id = ANY($2::uuid[])
        ORDER BY id FOR UPDATE`, [versions, groups]);
     const wanted = new Set(versions);
     if (lockedGroups.rowCount !== groups.length || lockedVersions.rowCount !== versions.length ||
@@ -270,26 +270,26 @@ router.post("/bulk", async (req, res) => {
     }
 
     const result = await client.query(
-      `INSERT INTO softtrack_audit_events
+      `INSERT INTO public.softtrack_audit_events
         (software_version_id, software_name, publisher, version, old_status, new_status,
          old_notes, new_notes, deleted_status, action, admin_id, admin_email)
        SELECT v.id, s.name, s.publisher, v.version, v.status, $2,
          v.notes, CASE WHEN $3 THEN NULL ELSE v.notes END,
          CASE WHEN $3 THEN v.status ELSE NULL END, $4, $5, $6
-       FROM software_versions v JOIN software s ON s.id = v.software_id
+       FROM public.software_versions v JOIN public.software s ON s.id = v.software_id
        WHERE v.id = ANY($1::uuid[]) AND ($3 OR v.status IS DISTINCT FROM $2)`,
       [versions, deleting ? null : status, deleting, deleting ? "deleted" : "status_changed", ...actor]);
     if (deleting) {
       await client.query(
-        `INSERT INTO softtrack_audit_events
+        `INSERT INTO public.softtrack_audit_events
           (software_name, publisher, version, old_software_name, old_publisher, action, admin_id, admin_email)
-         SELECT name, publisher, '', name, publisher, 'deleted', $2, $3 FROM software
+         SELECT name, publisher, '', name, publisher, 'deleted', $2, $3 FROM public.software
          WHERE id = ANY($1::uuid[])`, [groups, ...actor]);
-      await client.query("DELETE FROM software_versions WHERE id = ANY($1::uuid[])", [versions]);
-      await client.query("DELETE FROM software WHERE id = ANY($1::uuid[])", [groups]);
+      await client.query("DELETE FROM public.software_versions WHERE id = ANY($1::uuid[])", [versions]);
+      await client.query("DELETE FROM public.software WHERE id = ANY($1::uuid[])", [groups]);
     } else {
       await client.query(
-        "UPDATE software_versions SET status = $2 WHERE id = ANY($1::uuid[]) AND status IS DISTINCT FROM $2",
+        "UPDATE public.software_versions SET status = $2 WHERE id = ANY($1::uuid[]) AND status IS DISTINCT FROM $2",
         [versions, status]);
     }
     await client.query("COMMIT");
@@ -350,7 +350,7 @@ router.post("/", async (req, res) => {
     // Check whether the software group already exists.
     const software = await client.query(
       `SELECT id
-       FROM software
+       FROM public.software
        WHERE lower(name) = lower($1)
          AND lower(publisher) = lower($2)
        LIMIT 1`,
@@ -363,7 +363,7 @@ router.post("/", async (req, res) => {
       softwareId = software.rows[0].id;
     } else {
       const inserted = await client.query(
-        `INSERT INTO software (
+        `INSERT INTO public.software (
           id,
           name,
           publisher
@@ -383,7 +383,7 @@ router.post("/", async (req, res) => {
     // Prevent duplicate versions.
     const duplicate = await client.query(
       `SELECT id
-       FROM software_versions
+       FROM public.software_versions
        WHERE software_id = $1
          AND lower(version) = lower($2)
        LIMIT 1`,
@@ -400,7 +400,7 @@ router.post("/", async (req, res) => {
 
     // Insert the software version.
     const insertedVersion = await client.query(
-      `INSERT INTO software_versions (
+      `INSERT INTO public.software_versions (
         id,
         software_id,
         version,
@@ -490,7 +490,7 @@ router.patch("/:id", async (req, res) => {
 
     const existing = await client.query(
       `SELECT id, name, publisher
-       FROM software
+       FROM public.software
        WHERE id = $1
        FOR UPDATE`,
       [id]
@@ -522,7 +522,7 @@ router.patch("/:id", async (req, res) => {
     }
 
     const updated = await client.query(
-      `UPDATE software
+      `UPDATE public.software
        SET name = $1,
            publisher = $2
        WHERE id = $3
@@ -611,8 +611,8 @@ router.patch("/versions/:id", async (req, res) => {
          v.notes,
          s.name AS software_name,
          s.publisher
-       FROM software_versions v
-       JOIN software s ON s.id = v.software_id
+       FROM public.software_versions v
+       JOIN public.software s ON s.id = v.software_id
        WHERE v.id = $1
        FOR UPDATE OF v`,
       [id]
@@ -653,7 +653,7 @@ router.patch("/versions/:id", async (req, res) => {
     }
 
     const updated = await client.query(
-      `UPDATE software_versions
+      `UPDATE public.software_versions
        SET version = $1,
            status = $2,
            notes = $4
@@ -755,8 +755,8 @@ router.delete("/versions/:id", async (req, res) => {
          v.notes,
          s.name AS software_name,
          s.publisher
-       FROM software_versions v
-       JOIN software s ON s.id = v.software_id
+       FROM public.software_versions v
+       JOIN public.software s ON s.id = v.software_id
        WHERE v.id = $1
        FOR UPDATE OF v`,
       [id]
@@ -789,7 +789,7 @@ router.delete("/versions/:id", async (req, res) => {
 
     // Delete the selected version only.
     await client.query(
-      `DELETE FROM software_versions
+      `DELETE FROM public.software_versions
        WHERE id = $1`,
       [id]
     );
@@ -843,7 +843,7 @@ router.delete("/:id", async (req, res) => {
     // Lock the software group before deleting it.
     const existing = await client.query(
       `SELECT id, name, publisher
-       FROM software
+       FROM public.software
        WHERE id = $1
        FOR UPDATE`,
       [id]
@@ -862,7 +862,7 @@ router.delete("/:id", async (req, res) => {
     // Read and lock all versions belonging to this group.
     const versionsResult = await client.query(
       `SELECT id, version, status, notes
-       FROM software_versions
+       FROM public.software_versions
        WHERE software_id = $1
        ORDER BY id
        FOR UPDATE`,
@@ -906,14 +906,14 @@ router.delete("/:id", async (req, res) => {
 
     // Delete the versions explicitly.
     await client.query(
-      `DELETE FROM software_versions
+      `DELETE FROM public.software_versions
        WHERE software_id = $1`,
       [id]
     );
 
     // Delete the software group.
     const deleted = await client.query(
-      `DELETE FROM software
+      `DELETE FROM public.software
        WHERE id = $1
        RETURNING id`,
       [id]
