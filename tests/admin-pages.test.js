@@ -14,6 +14,7 @@ const pages = [
   ["add-software", "/admin/add-software", "admin-add-software.html", "adminAddSoftware"],
   ["import", "/admin/import", "admin-import.html", "adminImport"],
   ["audit", "/admin/audit", "admin-audit.html", "adminAudit"],
+  ["users", "/admin/users", "admin-users.html", "adminUsers"],
   ["settings", "/admin/settings", "admin-settings.html", "adminSettings"]
 ];
 

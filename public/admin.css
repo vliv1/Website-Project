@@ -1021,3 +1021,11 @@ html {
 #bulkDeleteList { max-height: 30vh; overflow: auto; padding-inline-start: 22px; }
 #bulkDeleteList li { padding-bottom: 8px; overflow-wrap: anywhere; }
 .bulk-dialog-actions { justify-content: flex-end; }
+
+.admin-users-form { max-width: 48rem; }
+.admin-users-form .admin-form-grid { grid-template-columns: 1fr; }
+.admin-users-form input { min-width: 0; width: 100%; box-sizing: border-box; }
+.admin-users-list { list-style: none; padding: 0; margin: 0; }
+.admin-users-list li { padding: 16px 0; border-top: 1px solid #94a3b855; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; }
+.admin-users-list strong { overflow-wrap: anywhere; min-width: 0; }
+.admin-users-list span { font-size: .9rem; }

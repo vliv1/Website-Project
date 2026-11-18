@@ -809,6 +809,7 @@ async function loadAdmin() {
       `Signed in as: ${result.email}`;
 
     adminContent.hidden = false;
+    window.AdminUsers?.load();
     window.ProductIdentification?.load();
 
     await loadAdminInventory();

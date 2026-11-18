@@ -286,6 +286,15 @@ app.use("/api/security-watch", securityWatchRoutes);
 app.use("/api/admin/product-identification", requireAdmin,
   require("./routes/product-identification")(securityWatchRoutes.identification, requireSameOrigin));
 
+const adminCreationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 20,
+  keyGenerator: req => String(req.session.adminId),
+  standardHeaders: "draft-8", legacyHeaders: false,
+  message: { error: "Too many account creation attempts. Try again later." }
+});
+app.use("/api/admin/users", requireAdmin,
+  require("./routes/admin-users")(requireSameOrigin, adminCreationLimiter));
+
 // Keep your existing V2 public website working.
 app.use(express.static(
   path.join(__dirname, "public")
